@@ -1,0 +1,59 @@
+#include <zephyr/dt-bindings/sensor/ism330dhcx.h>
+
+/ {
+    chosen {
+        zephyr,console = &cdc_acm_uart0;
+        zephyr,shell-uart = &cdc_acm_uart0;
+    };
+    
+	aliases {
+		stream0 = &imu;
+		stream1 = &barometer;
+	};
+};
+
+&zephyr_udc0 {
+    cdc_acm_uart0: cdc_acm_uart0 {
+        compatible = "zephyr,cdc-acm-uart";
+    };
+};
+
+&gpio3 {
+    status = "okay";
+};
+
+/* Arduino SPI header (pins 10-13) on LPSPI4 */
+&lpspi4 {
+    transfer-delay = <50>;
+    status = "okay";   
+    pinctrl-0 = <&pinmux_lpspi4>;
+    pcs-sck-delay= <25>;
+    sck-pcs-delay= <25>;
+    pinctrl-names = "default";
+
+    //cs-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+
+    imu: aism330dhcx@0 {
+        compatible = "st,ism330dhcx";
+        reg = <0>;
+        spi-max-frequency = <1000000>;
+        drdy-gpios = <&gpio3 18 GPIO_ACTIVE_HIGH>; //, <&gpio4 32 GPIO_ACTIVE_HIGH>;
+
+        accel-odr = <ISM330DHCX_DT_ODR_12Hz5>;
+        gyro-odr  = <ISM330DHCX_DT_ODR_12Hz5>;
+
+        accel-range = <8>;      /* ±8 g */
+        gyro-range  = <2000>;   /* ±2000 dps */
+    };
+};
+
+&lpi2c1 {
+    status = "okay";
+    pinctrl-0 = <&pinmux_lpi2c1>;
+    pinctrl-names = "default";
+
+    barometer: bme280@76 {
+        compatible = "bosch,bme280";
+        reg = <0x76>;
+    };
+};
