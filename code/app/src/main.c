@@ -1,6 +1,11 @@
+#include <math.h>
+#include <stdint.h>
+#include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+
+#include "servo.h"
 
 #define IMU_NODE DT_NODELABEL(imu)
 #define BAROMETER_NODE DT_NODELABEL(barometer)
@@ -8,11 +13,23 @@
 static const struct device *imu = DEVICE_DT_GET(IMU_NODE);
 static const struct device *barometer = DEVICE_DT_GET(BAROMETER_NODE);
 
+static const servo_t servo0 = DT_SERVO_GET(DT_NODELABEL(servo0));
+static const servo_t servo1 = DT_SERVO_GET(DT_NODELABEL(servo1));
+static const servo_t servo2 = DT_SERVO_GET(DT_NODELABEL(servo2));
+static const servo_t servo3 = DT_SERVO_GET(DT_NODELABEL(servo3));
+
+#define STEP PWM_USEC(10)
+
+enum direction {
+    DOWN,
+    UP,
+};
+
 static void imu_trigger_handler(
     const struct device *dev,
     const struct sensor_trigger *trig
 ) {
-    struct sensor_value accel[3];
+    struct sensor_value accel[4];
     struct sensor_value gyro[3];
     int rc;
 
@@ -99,17 +116,59 @@ void periodic_task(void) {
     }
 }
 
-K_THREAD_DEFINE(
-    periodic_thread_id,
-    MY_STACK_SIZE,
-    periodic_task,
-    NULL,
-    NULL,
-    NULL,
-    MY_PRIORITY,
-    0,
-    0
-);
+//K_THREAD_DEFINE(
+//    periodic_thread_id,
+//    MY_STACK_SIZE,
+//    periodic_task,
+//    NULL,
+//    NULL,
+//    NULL,
+//    MY_PRIORITY,
+//    0,
+//    0
+//);
+
+static int sweep_servo(const servo_t servo) {
+    float angle = -90.0f;  // start at minimum position
+    enum direction dir = UP;
+    int ret;
+
+    printk("Servomotor control (angle based)\n");
+
+    if (!pwm_is_ready_dt(&servo.spec)) {
+        printk("Error: PWM device %s is not ready\n", servo.spec.dev->name);
+        return -ENODEV;
+    }
+
+    while (1) {
+        ret = servo_set_angle(servo, angle);
+        if (ret < 0) {
+            printk("Error %d: failed to set angle %.1f\n", ret, angle);
+            return ret;
+        }
+
+        // Step size = degrees per iteration
+        const float step_size = 1.0f;
+
+        if (dir == UP) {
+            angle += step_size;
+            if (angle >= 90.0f) {
+                angle = 90.0f;
+                dir = DOWN;
+            }
+        } else {
+            angle -= step_size;
+            if (angle <= -90.0f) {
+                angle = -90.0f;
+                dir = UP;
+            }
+        }
+
+        k_sleep(K_MSEC(20));  // Smooth sweep speed
+    }
+
+    return 0;
+}
 
 int main(void) {
     int rc;
@@ -124,18 +183,22 @@ int main(void) {
         return 0;
     }
 
+    k_msleep(2000);
+
     struct sensor_trigger trig = {
         .type = SENSOR_TRIG_DATA_READY,
         .chan = SENSOR_CHAN_ACCEL_XYZ,
     };
 
-    rc = sensor_trigger_set(imu, &trig, imu_trigger_handler);
-    if (rc) {
-        printk("Trigger set failed: %d\n", rc);
-        return 0;
-    }
+    //rc = sensor_trigger_set(imu, &trig, imu_trigger_handler);
+    //if (rc) {
+    //    printk("Trigger set failed: %d\n", rc);
+    //    return 0;
+    //}
 
     printk("ISM330DHCX trigger set — waiting for DATA_READY events...\n");
+
+    sweep_servo(servo0);
 
     /* Nothing else to do here; callback runs on interrupt. */
     while (1) {

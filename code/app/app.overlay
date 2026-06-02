@@ -1,4 +1,5 @@
 #include <zephyr/dt-bindings/sensor/ism330dhcx.h>
+#include <nxp/nxp_imx/rt/mimxrt1062dvl6a-pinctrl.dtsi>
 
 / {
     chosen {
@@ -10,6 +11,34 @@
 		stream0 = &imu;
 		stream1 = &barometer;
 	};
+
+    servo0: servo0 {
+        compatible = "pwm-servo";
+        pwms = <&flexpwm4_pwm2 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo1: servo1 {
+        compatible = "pwm-servo";
+        pwms = <&flexpwm4_pwm2 1 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo2: servod {
+        compatible = "pwm-servo";
+        pwms = <&flexpwm2_pwm0 0 PWM_MSEC(10) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo3: servo3 {
+        compatible = "pwm-servo";
+        pwms = <&flexpwm2_pwm1 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
 };
 
 &zephyr_udc0 {
@@ -57,3 +86,55 @@
         reg = <0x76>;
     };
 };
+
+&pinctrl {
+	pinmux_flexpwm4_ch2: pinmux_flexpwm4_ch2 {
+		group0 {
+			pinmux = <&iomuxc_gpio_emc_04_flexpwm4_pwma2>, //output A
+                    <&iomuxc_gpio_emc_05_flexpwm4_pwmb2>; //output B
+			drive-strength = "r0-7";
+			slew-rate = "fast";
+			nxp,speed = "200-mhz";
+		};
+	};
+
+	pinmux_flexpwm2_ch0: pinmux_flexpwm4_ch0 {
+		group0 {
+			pinmux = <&iomuxc_gpio_emc_06_flexpwm2_pwma0>; //output A
+			drive-strength = "r0-7";
+			slew-rate = "fast";
+			nxp,speed = "200-mhz";
+		};
+	};
+
+	pinmux_flexpwm2_ch1: pinmux_flexpwm4_ch1 {
+		group0 {
+			pinmux = <&iomuxc_gpio_emc_08_flexpwm2_pwma1>; //output A
+			drive-strength = "r0-7";
+			slew-rate = "fast";
+			nxp,speed = "200-mhz";
+		};
+	};
+};
+
+&flexpwm4_pwm2 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_flexpwm4_ch2>;
+	pinctrl-names = "default";
+	nxp,prescaler = <64>;
+};
+
+&flexpwm2_pwm0 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_flexpwm2_ch0>;
+	pinctrl-names = "default";
+	nxp,prescaler = <64>;
+};
+
+&flexpwm2_pwm1 {
+	status = "okay";
+	pinctrl-0 = <&pinmux_flexpwm2_ch1>;
+	pinctrl-names = "default";
+	nxp,prescaler = <64>;
+};
+
