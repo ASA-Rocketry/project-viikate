@@ -102,7 +102,8 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
         rc = sensor_sample_fetch(barometer);
         if (rc) {
             printk("Barometer fetch failed: %d\n", rc);
-            return;
+            k_msleep(1);
+            continue;
         }
 
         struct sensor_value pressure;
@@ -115,7 +116,8 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
         );
         if (rc) {
             printk("Barometer decode failed: %d\n", rc);
-            return;
+            k_msleep(1);
+            continue;
         }
 
         uint64_t elapsed = k_uptime_get() - start_time;
@@ -140,6 +142,11 @@ int barometer_init(const struct device *barometer) {
     ret = device_is_ready(barometer);
     if (ret == 0) {
         printk("Barometer is not ready: %d!\n", ret);
+        k_msleep(10);
+        device_init(barometer);
+        ret = device_is_ready(barometer);
+        if (ret == 0)
+            return 0;
         return ret;
     }
 

@@ -89,7 +89,7 @@
           ZEPHYR_TOOLCHAIN_VARIANT = "zephyr";
           WEST_PYTHON = "${pkgs.zephyr.pythonEnv}/bin/python3";
           shellHook = ''
-            export ZEPHYR_BASE="$(pwd)/code/zephyr"
+            export ZEPHYR_BASE="$(pwd)/zephyr"
           '';
         };
       }

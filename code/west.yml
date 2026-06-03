@@ -1,0 +1,15 @@
+manifest:
+  projects:
+    - name: zephyr
+      path: zephyr
+      url: https://github.com/zephyrproject-rtos/zephyr
+      revision: main
+      import: true
+
+    - name: cmsis-dsp
+      url: https://github.com/ARM-software/CMSIS-DSP
+      revision: main
+      path: modules/lib/cmsis-dsp
+
+  self:
+    path: app

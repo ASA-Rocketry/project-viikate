@@ -1,2 +1,52 @@
 .vscode/
 .venv
+
+build/
+app/build/
+.cmake/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+compile_commands.json
+ninja.*
+*.log
+*.d
+*.elf
+*.bin
+*.hex
+*.map
+*.lst
+
+# -------------------------------------------------------------------
+# West workspace files
+# -------------------------------------------------------------------
+.west/
+zephyr/
+modules/
+bootloader/
+tools/
+code/app/build
+code/build
+build/
+# if you have a 'hal_xxx' directory or other west-fetched content
+**/hal_*/
+
+# -------------------------------------------------------------------
+# Nix / Python / local tooling
+# -------------------------------------------------------------------
+result/
+.cache/
+.envrc
+.python-version
+venv/
+__pycache__/
+*.pyc
+
+# -------------------------------------------------------------------
+# Miscellaneous/editor/platform-specific
+# -------------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+*.swp
