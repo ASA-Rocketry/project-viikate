@@ -68,8 +68,8 @@
         spi-max-frequency = <1000000>;
         drdy-gpios = <&gpio3 18 GPIO_ACTIVE_HIGH>; //, <&gpio4 32 GPIO_ACTIVE_HIGH>;
 
-        accel-odr = <ISM330DHCX_DT_ODR_12Hz5>;
-        gyro-odr  = <ISM330DHCX_DT_ODR_12Hz5>;
+        accel-odr = <ISM330DHCX_DT_ODR_52Hz>;
+        gyro-odr  = <ISM330DHCX_DT_ODR_52Hz>;
 
         accel-range = <8>;      /* ±8 g */
         gyro-range  = <2000>;   /* ±2000 dps */

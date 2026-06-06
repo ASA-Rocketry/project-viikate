@@ -4,8 +4,12 @@
 #include <stdint.h>
 #include <string.h>
 
-#define KALMAN_MAX_X 6
-#define KALMAN_MAX_Z 3
+typedef void (*kalman_propagate_fn_t)(
+    float32_t *restrict x_next,
+    const float32_t *restrict x,
+    const float32_t *restrict u,
+    float dt
+);
 
 typedef struct {
     uint8_t dim_x;
@@ -42,6 +46,8 @@ typedef struct {
     float32_t *work_ky;  // (n)
     float32_t *work_kh;  // (n×n)
     float32_t *work_i_minus_kh;  // (n×n)
+
+    kalman_propagate_fn_t propagate;
 } kalman_filter_state_t;
 
 // --- Allocation & management ---
@@ -52,11 +58,16 @@ kalman_filter_state_t *kalman_init(uint8_t dim_x, uint8_t dim_z);
 kalman_filter_state_t *
 kalman_init_inplace(void *mem, size_t bytes, uint8_t dim_x, uint8_t dim_z);
 
-kalman_filter_state_t *kalman_init_baro(void);
 void kalman_deinit(kalman_filter_state_t *kf);
 void kalman_cleanup(void *v);
 
 // --- Core operations ---
 void kalman_prepare_cv_model(kalman_filter_state_t *kf, float dt, float q);
 void kalman_predict(kalman_filter_state_t *kf);
+void kalman_predict_ekf(
+    kalman_filter_state_t *kf,
+    const float32_t *u,
+    float dt,
+    float eps
+);
 void kalman_update(kalman_filter_state_t *kf, const float32_t *measured);
