@@ -1,5 +1,6 @@
 #include "guidance/kalman.h"
 
+#include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 
@@ -137,38 +138,53 @@ kalman_init_inplace(void *mem, size_t bytes, uint8_t dim_x, uint8_t dim_z) {
     return kf;
 }
 
-kalman_filter_state_t *kalman_init_baro(void) {
-    kalman_filter_state_t *kf = kalman_init(2, 1);
-    if (!kf)
-        return NULL;
-
-    kf->state_data[0] = 101.325f;
-    kf->state_data[1] = 0.0f;
-
-    kf->covariance_data[0] = 10000.0f;
-    kf->covariance_data[1] = 0.0f;
-    kf->covariance_data[2] = 0.0f;
-    kf->covariance_data[3] = 1000.0f;
-
-    kf->measurement_matrix_data[0] = 1.0f;
-    kf->measurement_matrix_data[1] = 0.0f;
-
-    kf->measurement_noise_data[0] = 0.01f;
-    kf->process_noise_intensity = 0.0001f;
-
-    return kf;
-}
-
 void kalman_deinit(kalman_filter_state_t *kf) {
     if (!kf)
         return;
-    if (kf->owned_block) {
+    if (kf->owned_block)
         free(kf->owned_block);
-    }
 }
 
 void kalman_cleanup(void *v) {
     kalman_deinit(*(kalman_filter_state_t **)v);
+}
+
+void kalman_set_propagate(kalman_filter_state_t *kf, kalman_propagate_fn_t fn) {
+    if (kf)
+        kf->propagate = fn;
+}
+
+// --- Numeric Jacobian: recompute F with finite differences
+static void kalman_compute_F_numeric(
+    kalman_filter_state_t *kf,
+    const float32_t *x_ref,
+    const float32_t *y_ref,
+    const float32_t *u,
+    float dt,
+    float eps
+) {
+    uint8_t n = kf->dim_x;
+    float32_t *F = kf->state_transition_data;
+    if (eps <= 0.0f)
+        eps = 1e-5f;
+
+    float32_t *x_tmp = kf->work_kh;  // use n×n buffer for temp storage
+    float32_t *y_tmp = kf->work_x_pred;  // output buffer
+
+    for (uint8_t col = 0; col < n; col++) {
+        for (uint8_t i = 0; i < n; i++)
+            x_tmp[i] = x_ref[i];
+
+        float h = eps * fmaxf(1.0f, fabsf(x_ref[col]));
+        if (h == 0.0f)
+            h = eps;
+        x_tmp[col] += h;
+
+        kf->propagate(y_tmp, x_tmp, u, dt);
+
+        for (uint8_t row = 0; row < n; row++)
+            F[row * n + col] = (y_tmp[row] - y_ref[row]) / h;
+    }
 }
 
 // === model setup ===
@@ -186,24 +202,19 @@ void kalman_prepare_cv_model(kalman_filter_state_t *kf, float dt, float q) {
     float32_t dt3 = dt2 * dt;
     float32_t dt4 = dt3 * dt;
 
-    // F = I
     for (uint8_t i = 0; i < (uint8_t)(n * n); i++)
         kf->state_transition_data[i] = 0.0f;
     for (uint8_t i = 0; i < n; i++)
         kf->state_transition_data[i * n + i] = 1.0f;
 
-    // link velocity terms
-    for (uint8_t i = 0; i + 1 < n; i += 2) {
+    for (uint8_t i = 0; i + 1 < n; i += 2)
         kf->state_transition_data[i * n + (i + 1)] = dt;
-    }
 
-    // Q
     for (uint8_t i = 0; i < (uint8_t)(n * n); i++)
         kf->process_noise_data[i] = 0.0f;
 
     for (uint8_t blk = 0; blk + 1 < n; blk += 2) {
-        uint8_t i = blk;
-        uint8_t j = blk + 1;
+        uint8_t i = blk, j = blk + 1;
         kf->process_noise_data[i * n + i] = q * dt4 / 4.0f;
         kf->process_noise_data[i * n + j] = q * dt3 / 2.0f;
         kf->process_noise_data[j * n + i] = q * dt3 / 2.0f;
@@ -211,7 +222,7 @@ void kalman_prepare_cv_model(kalman_filter_state_t *kf, float dt, float q) {
     }
 }
 
-// === predict ===
+// === linear predict ===
 void kalman_predict(kalman_filter_state_t *kf) {
     uint8_t n = kf->dim_x;
     if (n == 0)
@@ -224,13 +235,10 @@ void kalman_predict(kalman_filter_state_t *kf) {
     arm_mat_init_f32(&F, n, n, kf->state_transition_data);
     arm_mat_init_f32(&Q, n, n, kf->process_noise_data);
 
-    // x = F*x
     arm_mat_init_f32(&x_pred, n, 1, kf->work_x_pred);
     (void)arm_mat_mult_f32(&F, &state, &x_pred);
-    for (uint8_t i = 0; i < n; i++)
-        kf->state_data[i] = kf->work_x_pred[i];
+    memcpy(kf->state_data, kf->work_x_pred, sizeof(float32_t) * n);
 
-    // P = FPF^T + Q
     arm_mat_init_f32(&FP, n, n, kf->work_fp);
     (void)arm_mat_mult_f32(&F, &cov, &FP);
 
@@ -242,11 +250,54 @@ void kalman_predict(kalman_filter_state_t *kf) {
 
     arm_mat_init_f32(&P_new, n, n, kf->work_p_new);
     (void)arm_mat_add_f32(&P_pred, &Q, &P_new);
-
     memcpy(kf->covariance_data, kf->work_p_new, sizeof(float32_t) * n * n);
 }
 
-// === update ===
+// === EKF nonlinear predict ===
+void kalman_predict_ekf(
+    kalman_filter_state_t *kf,
+    const float32_t *u,
+    float dt,
+    float eps
+) {
+    uint8_t n = kf->dim_x;
+    if (n == 0)
+        return;
+
+    if (!kf->propagate) {
+        kalman_predict(kf);
+        return;
+    }
+
+    float32_t *x_ref = kf->work_kh;
+    for (uint8_t i = 0; i < n; i++)
+        x_ref[i] = kf->state_data[i];
+
+    kf->propagate(kf->work_x_pred, x_ref, u, dt);
+    memcpy(kf->state_data, kf->work_x_pred, sizeof(float32_t) * n);
+
+    kalman_compute_F_numeric(kf, x_ref, kf->state_data, u, dt, eps);
+
+    arm_matrix_instance_f32 cov, F, Q, FP, Ft, P_pred, P_new;
+    arm_mat_init_f32(&cov, n, n, kf->covariance_data);
+    arm_mat_init_f32(&F, n, n, kf->state_transition_data);
+    arm_mat_init_f32(&Q, n, n, kf->process_noise_data);
+
+    arm_mat_init_f32(&FP, n, n, kf->work_fp);
+    (void)arm_mat_mult_f32(&F, &cov, &FP);
+
+    arm_mat_init_f32(&Ft, n, n, kf->work_ft);
+    (void)arm_mat_trans_f32(&F, &Ft);
+
+    arm_mat_init_f32(&P_pred, n, n, kf->work_p_pred);
+    (void)arm_mat_mult_f32(&FP, &Ft, &P_pred);
+
+    arm_mat_init_f32(&P_new, n, n, kf->work_p_new);
+    (void)arm_mat_add_f32(&P_pred, &Q, &P_new);
+    memcpy(kf->covariance_data, kf->work_p_new, sizeof(float32_t) * n * n);
+}
+
+// === update (unchanged) ===
 void kalman_update(kalman_filter_state_t *kf, const float32_t *measured) {
     uint8_t n = kf->dim_x;
     uint8_t m = kf->dim_z;
@@ -263,14 +314,12 @@ void kalman_update(kalman_filter_state_t *kf, const float32_t *measured) {
     arm_mat_init_f32(&H, m, n, kf->measurement_matrix_data);
     arm_mat_init_f32(&R, m, m, kf->measurement_noise_data);
 
-    // y = z - Hx
     arm_mat_init_f32(&Hx, m, 1, kf->work_hx);
     (void)arm_mat_mult_f32(&H, &state, &Hx);
     for (uint8_t i = 0; i < m; i++)
         kf->work_innovation[i] = measured[i] - kf->work_hx[i];
     arm_mat_init_f32(&innovation, m, 1, kf->work_innovation);
 
-    // S = HPH^T + R
     arm_mat_init_f32(&Ht, n, m, kf->work_ht);
     (void)arm_mat_trans_f32(&H, &Ht);
 
@@ -283,23 +332,18 @@ void kalman_update(kalman_filter_state_t *kf, const float32_t *measured) {
     arm_mat_init_f32(&S, m, m, kf->work_s);
     (void)arm_mat_add_f32(&HPHt, &R, &S);
 
-    // inv(S)
     arm_mat_init_f32(&invS_mat, m, m, kf->work_invs);
-    arm_status inv_stat = arm_mat_inverse_f32(&S, &invS_mat);
-    if (inv_stat != ARM_MATH_SUCCESS)
+    if (arm_mat_inverse_f32(&S, &invS_mat) != ARM_MATH_SUCCESS)
         return;
 
-    // K = PH^T inv(S)
     arm_mat_init_f32(&K, n, m, kf->work_k);
     (void)arm_mat_mult_f32(&PHt, &invS_mat, &K);
 
-    // x = x + Ky
     arm_mat_init_f32(&Ky, n, 1, kf->work_ky);
     (void)arm_mat_mult_f32(&K, &innovation, &Ky);
     for (uint8_t i = 0; i < n; i++)
         kf->state_data[i] += kf->work_ky[i];
 
-    // P = (I - KH) P
     arm_mat_init_f32(&KH, n, n, kf->work_kh);
     (void)arm_mat_mult_f32(&K, &H, &KH);
 

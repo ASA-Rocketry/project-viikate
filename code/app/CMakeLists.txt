@@ -9,4 +9,5 @@ target_sources(app PRIVATE
     src/servo.c
     src/sensors.c
     src/guidance/kalman.c
+    src/guidance/filters.c
 )
