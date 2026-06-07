@@ -3,12 +3,12 @@ manifest:
     - name: zephyr
       path: zephyr
       url: https://github.com/zephyrproject-rtos/zephyr
-      revision: main
+      revision: 6eee4fecf07cc5f4382602dc26896ce3dfc9f3e0
       import: true
 
     - name: cmsis-dsp
       url: https://github.com/ARM-software/CMSIS-DSP
-      revision: main
+      revision: 47a832f6438d623f27373645d849e1debb989908
       path: modules/lib/cmsis-dsp
 
   self:

@@ -3,6 +3,7 @@
 #include <stdalign.h>
 #include <zephyr/drivers/sensor.h>
 
+#include "math/linmath.h"
 #include "zephyr/device.h"
 #include "zephyr/kernel.h"
 #include "zephyr/sys/printk.h"
@@ -50,13 +51,20 @@ static void imu_trigger_handler(
     imu_sample_t s;
     s.timestamp_ns = k_ticks_to_ns_floor64(k_uptime_ticks());
 
-    s.ax = sensor_value_to_float(&accel[0]);
-    s.ay = sensor_value_to_float(&accel[1]);
-    s.az = sensor_value_to_float(&accel[2]);
+    vec3 acceleration = {
+        sensor_value_to_float(&accel[0]),
+        sensor_value_to_float(&accel[1]),
+        sensor_value_to_float(&accel[2])
+    };
 
-    s.gx = sensor_value_to_float(&gyro[0]);
-    s.gy = sensor_value_to_float(&gyro[1]);
-    s.gz = sensor_value_to_float(&gyro[2]);
+    vec3 angular_acceleration = {
+        sensor_value_to_float(&gyro[0]),
+        sensor_value_to_float(&gyro[1]),
+        sensor_value_to_float(&gyro[2])
+    };
+
+    vec3_dup(s.acceleration, acceleration);
+    vec3_dup(s.angular_rate, angular_acceleration);
 
     // DDR(Jozef): this drops the old sample if we run out of space which should be fine for the IMU
     while (k_msgq_put(&imu_msgq, &s, K_NO_WAIT) != 0) {

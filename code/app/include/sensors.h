@@ -3,10 +3,12 @@
 #include <stdint.h>
 #include <zephyr/kernel.h>
 
+#include "math/linmath.h"
+
 typedef struct {
     uint64_t timestamp_ns;
-    float ax, ay, az;
-    float gx, gy, gz;
+    vec3 acceleration;
+    vec3 angular_rate;
 } imu_sample_t;
 
 typedef struct {

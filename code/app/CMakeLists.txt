@@ -10,4 +10,5 @@ target_sources(app PRIVATE
     src/sensors.c
     src/guidance/kalman.c
     src/guidance/filters.c
+    src/guidance/pid.c
 )

@@ -79,6 +79,10 @@
           pkgs.clang
           pkgs.valgrind
           pkgs.gdb
+
+          pkgs.python3
+          pkgs.python3Packages.matplotlib
+          pkgs.python3Packages.pyserial
         ];
       in
       {
