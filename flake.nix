@@ -114,9 +114,15 @@
               clang-tools = pkgs.clang-tools;
             };
             hooks = {
-              clang-format.enable = true;
+              clang-format = {
+                enable = true;
+                # simulation/ is MATLAB (Simulink-exported .m): clang hooks
+                # would treat it as Objective-C and choke on it.
+                excludes = [ "^simulation/" ];
+              };
               clang-tidy = {
                 enable = withTidy;
+                excludes = [ "^simulation/" ];
                 entry =
                   "${clang-tidy-zephyr}/bin/clang-tidy-zephyr "
                   + "code/build/compile_commands.json";
