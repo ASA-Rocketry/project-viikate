@@ -396,7 +396,7 @@ mat4x4_ortho(mat4x4 M, float l, float r, float b, float t, float n, float f) {
 LINMATH_H_FUNC void
 mat4x4_perspective(mat4x4 m, float y_fov, float aspect, float n, float f) {
     /* NOTE: Degrees are an unhandy unit to work with.
-   * linmath.h uses radians for everything! */
+	 * linmath.h uses radians for everything! */
     float const a = 1.f / tanf(y_fov / 2.f);
 
     m[0][0] = a / aspect;
@@ -427,7 +427,7 @@ mat4x4_look_at(mat4x4 m, vec3 const eye, vec3 const center, vec3 const up) {
     /* of the algorithm. We implement it in a straightforward way:       */
 
     /* TODO: The negation of of can be spared by swapping the order of
-   *       operands in the following cross products in the right way. */
+	 *       operands in the following cross products in the right way. */
     vec3 f;
     vec3_sub(f, center, eye);
     vec3_norm(f, f);
@@ -505,10 +505,10 @@ LINMATH_H_FUNC void quat_rotate(quat r, float angle, vec3 const axis) {
 
 LINMATH_H_FUNC void quat_mul_vec3(vec3 r, quat const q, vec3 const v) {
     /*
-   * Method by Fabian 'ryg' Giessen (of Farbrausch)
-  t = 2 * cross(q.xyz, v)
-  v' = v + q.w * t + cross(q.xyz, t)
-   */
+ * Method by Fabian 'ryg' Giessen (of Farbrausch)
+t = 2 * cross(q.xyz, v)
+v' = v + q.w * t + cross(q.xyz, t)
+ */
     vec3 t;
     vec3 q_xyz = {q[0], q[1], q[2]};
     vec3 u = {q[0], q[1], q[2]};

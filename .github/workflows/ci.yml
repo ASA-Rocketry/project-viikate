@@ -4,41 +4,37 @@ on:
   pull_request:
 
 jobs:
-  precommit:
+  ci:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v5
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v31
         with:
-          python-version: "3.11"
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Install dependencies
+      - name: Build firmware
         run: |
-          sudo apt-get update
-          sudo apt-get install -y meson ninja-build clang clang-tidy
+          nix develop --command bash -c '
+            set -e
+            cd code
+            west init -l .
+            west update
+            west zephyr-export
+            west build -b teensy41 app
+          '
 
-      - name: Generate compile_commands.json
-        working-directory: code
-        run: meson setup build --wipe
+      - name: Run pre-commit hooks
+        run: |
+          nix develop .#pre-commit --command bash -c '
+            set -e
+            pre-commit run --all-files
+            if [ "$GITHUB_EVENT_NAME" = "push" ]; then
+              git log -1 --format=%B > /tmp/commit-msg
+              pre-commit run --hook-stage commit-msg --commit-msg-file /tmp/commit-msg
+            fi
+          '
 
-      - name: Generate compile_commands.json
-        working-directory: code
-        run: meson compile -C build/
 
-      - name: Run the executable for one second to make sure it doesn't crash and burn on startup
-        run: timeout 1s ./code/build/firmware/firmware || true
-
-      - name: Install pre-commit
-        run: pip install pre-commit
-
-      - name: Cache pre-commit
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
-
-      - name: Run pre-commit checks
-        run: pre-commit run --all-files
