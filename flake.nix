@@ -118,11 +118,11 @@
                 enable = true;
                 # simulation/ is MATLAB (Simulink-exported .m): clang hooks
                 # would treat it as Objective-C and choke on it.
-                excludes = [ "^simulation/" ];
+                excludes = [ "^simulation/" "^tests/vendor/" ];
               };
               clang-tidy = {
                 enable = withTidy;
-                excludes = [ "^simulation/" ];
+                excludes = [ "^simulation/" "^tests/" ];
                 entry =
                   "${clang-tidy-zephyr}/bin/clang-tidy-zephyr "
                   + "code/build/compile_commands.json";
@@ -144,7 +144,9 @@
           pkgs.picocom
 
           pkgs.meson
-          pkgs.ninja
+
+          pkgs.just
+          pkgs.stdenv.cc
 
           pkgs.clang-tools
           pkgs.clang

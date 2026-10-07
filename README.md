@@ -43,6 +43,74 @@ The priority of tests is strictly in this order:
 
 Notice how getters and setters are not included. They are not important.
 
+## Reading test results
+
+Unit tests live in [`tests/`](./tests) and run on your development machine,
+not on the avionics board. CMake configures and builds them, CTest runs them:
+
+```bash
+just test
+```
+
+A green run is short — one line per test binary and the summary:
+
+```
+    Start 1: test_matmul
+1/1 Test #1: test_matmul ......................   Passed    0.00 sec
+
+100% tests passed, 0 tests failed out of 1
+```
+
+A red run prints the failing binary's whole utest output instead of the
+`Passed` line, so the case level detail is there when you need it:
+
+```
+1/1 Test #1: test_matmul ......................***Failed    0.00 sec
+[==========] Running 5 test cases.
+[ RUN      ] matmul.vec4_product
+/home/…/tests/test_matmul.c:85: Failure
+  Expected : 71.000000
+    Actual : 70.000000
+[  FAILED  ] matmul.vec4_product (4629ns)
+[==========] 5 test cases ran.
+[  PASSED  ] 4 tests.
+[  FAILED  ] 1 tests, listed below:
+[  FAILED  ] matmul.vec4_product
+
+0% tests passed, 1 tests failed out of 1
+
+The following tests FAILED:
+      1 - test_matmul (Failed)
+```
+
+How to read it:
+
+- `[ RUN ]` starts a case, `[ OK ]` means every assertion in it held,
+  `[ FAILED ]` means at least one did not. The time in brackets is how long
+  the case took.
+- A failed `ASSERT_*` prints the file and line of the assertion, then the two
+  values: `Expected` is what the test wanted, `Actual` is what it got. The
+  tolerance on these checks is `1e-4`.
+- The `[  FAILED  ] … listed below:` block names every failing case, e.g.
+  `[  FAILED  ] matmul.vec4_product`.
+- `The following tests FAILED:` is CTest's own summary. CTest works per test
+  binary, utest works per case — the binary entry tells you which file to
+  open, the utest block tells you which case broke.
+- `just test` exits `0` only when everything passed (CTest returns `8` on a
+  failure), which is what CI keys off.
+
+Anything after the recipe name is handed to utest through CMake's `TEST_ARGS`,
+and CTest is then asked to show every case (`-V`), so selecting what to run
+still prints the results:
+
+```bash
+just test --list-tests
+just test --filter='matmul.identity_*'
+```
+
+Binaries are written to `build/tests/`, which is gitignored; `just clean`
+removes it.
+
 ## How to make Git less painful
 
 - Use rebases instead of merges. Merges pollute history, rebases straighten it back out.
