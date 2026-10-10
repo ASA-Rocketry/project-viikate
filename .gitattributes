@@ -22,3 +22,24 @@
 *.gif binary
 *.pdf binary
 *.zip binary
+
+# MATLAB/Simulink binary formats — MathWorks "Set Up Git Source Control":
+# registering them as binary stops Git from converting line endings or
+# attempting text automerges, which corrupts these files.
+# *.slx/*.mdl also wire in the Simulink merge driver: for contributors who ran
+# comparisons.ExternalSCMLink.setupGitConfig() in MATLAB, Git automerges
+# changes made in different subsystems (mlAutoMerge); everyone else falls
+# back to a normal binary conflict to resolve with the Simulink Three-Way
+# Merge tool.
+*.slx binary merge=mlAutoMerge
+*.mdl binary merge=mlAutoMerge
+*.mat binary
+*.mlx binary
+*.fig binary
+*.mlapp binary
+*.sldd binary
+*.p binary
+*.mexa64 binary
+*.mexmaca64 binary
+*.mexmaci64 binary
+*.mexw64 binary
