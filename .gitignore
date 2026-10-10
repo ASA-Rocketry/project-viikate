@@ -46,6 +46,22 @@ __pycache__/
 .jj/
 
 # -------------------------------------------------------------------
+# MATLAB / Simulink generated files
+# -------------------------------------------------------------------
+# Simulink simulation & code-generation cache folders
+slprj/
+# Simulink model cache files
+*.slxc
+# MATLAB & Simulink autosave files
+*.autosave
+*.asv
+# compiled MEX binaries (all platforms)
+*.mexa64
+*.mexmaca64
+*.mexmaci64
+*.mexw64
+
+# -------------------------------------------------------------------
 # Miscellaneous/editor/platform-specific
 # -------------------------------------------------------------------
 .DS_Store
