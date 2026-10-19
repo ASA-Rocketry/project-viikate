@@ -1,0 +1,28 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "Build firmware",
+      "type": "process",
+      "command": "/nix/var/nix/profiles/default/bin/nix",
+      "args": [
+        "develop",
+        "${workspaceFolder}",
+        "--command",
+        "west",
+        "build",
+        "-b",
+        "teensy41",
+        "app"
+      ],
+      "options": {
+        "cwd": "${workspaceFolder}/code"
+      },
+      "group": {
+        "kind": "build",
+        "isDefault": true
+      },
+      "problemMatcher": []
+    }
+  ]
+}
