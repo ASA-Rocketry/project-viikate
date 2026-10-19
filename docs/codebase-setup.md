@@ -33,8 +33,22 @@ You will have to enable nix flakes by adding this to `/etc/nix/nix.conf`:
 ```ini
 experimental-features = nix-command flakes
 ```
+by running the command:
+```ini
+sudo nano /etc/nix/nix.conf
+```
 
 ## Seting up the codebase
+
+Start by cloning the Project Viikate via the command: 
+```ini
+git clone git@github.com:ASA-Rocketry/project-viikate.git
+```
+After which enter the cloned folder by typing: 
+```ini
+cd project-viikate
+```
+Now you can run the next commands.
 
 Quick way:
 ```bash
