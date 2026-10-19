@@ -29,7 +29,7 @@ Finally, restart the WSL virtual machine.
 In order to install nix, you want to [visit the nix download page](https://nixos.org/download/#nix-install-windows)
 and copy and run the **multi-user installation** in the command line.
 
-You will have to enable nix flakes by adding this to `/etc/nix/nix.conf`:
+You will have to enable nix flakes by adding this to `/etc/nix/nix.conf` by running the command 'sudo nano /etc/nix/nix.conf':
 ```ini
 experimental-features = nix-command flakes
 ```
