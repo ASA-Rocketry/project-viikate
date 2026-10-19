@@ -62,3 +62,9 @@ nix develop
 ```
 
 This is to install any dependencies.
+
+### Building from VS Code
+
+Open the repository in VS Code connected to WSL, then use **Terminal > Run Build Task** or press **Ctrl+Shift+B** ( **Cmd+Shift+B** on macOS). The default **Build firmware** task runs `west build -b teensy41 app` from `code/` inside the repository's Nix development environment. The initial West setup (`west init`, `west update`, and `west zephyr-export`) must already be complete.
+
+This task is intended for the VS Code build shortcut. Do not use the CMake Tools build command for this workspace; CMake Tools does not provide the Nix/West environment needed by the Zephyr application.
