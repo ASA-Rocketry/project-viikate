@@ -52,4 +52,7 @@ __pycache__/
 Thumbs.db
 .idea/
 .vscode/
+!.vscode/
+.vscode/*
+!.vscode/tasks.json
 *.swp
