@@ -17,6 +17,7 @@ NIX_INSTALL_URL="https://nixos.org/nix/install"
 NIX=(nix --extra-experimental-features "nix-command flakes")
 
 do_west_update=1
+do_build=0
 enter_shell=1
 do_configure=0
 wizard=0
@@ -35,6 +36,7 @@ Options:
                 Without this flag the script never edits system files
                 and only prints the required changes.
   --no-update   Skip fetching Zephyr and modules (west update).
+  --build       Also build the Teensy 4.1 firmware in code/build.
   --no-shell    Do not enter the nix dev shell at the end.
   -h, --help    Show this help text.
 EOF
@@ -74,6 +76,7 @@ while [ $# -gt 0 ]; do
         --zephyr) ;; # default behavior; flag kept for the documented CLI
         --configure) do_configure=1 ;;
         --no-update) do_west_update=0 ;;
+        --build) do_build=1 ;;
         --no-shell) enter_shell=0 ;;
         -h | --help)
             usage
@@ -99,7 +102,9 @@ This script will set up your development environment:
   1. Check WSL configuration (systemd) if you are on Windows/WSL.
   2. Install Nix if it is missing (official installer, asks for sudo).
   3. Fetch the Zephyr RTOS sources and modules (~9 GB download).
-  4. Drop you into the nix development shell when done.
+  4. Export the Zephyr CMake package and install the Git hooks via Nix.
+  5. Optionally build the Teensy 4.1 firmware.
+  6. Drop you into the nix development shell when done.
 
 You will now be asked about the optional choices.
 Press Enter to accept the [default].
@@ -109,6 +114,15 @@ EOF
     fi
     if ! ask "Fetch Zephyr + modules now (~9 GB)?" y; then
         do_west_update=0
+    fi
+    build_default=n
+    if [ "$do_build" -eq 1 ]; then
+        build_default=y
+    fi
+    if ask "Build the Teensy 4.1 firmware now?" "$build_default"; then
+        do_build=1
+    else
+        do_build=0
     fi
     if ! ask "Enter the dev shell automatically when setup finishes?" y; then
         enter_shell=0
@@ -193,7 +207,31 @@ if [ "$do_west_update" -eq 1 ]; then
     "${NIX[@]}" develop -c west update
 fi
 
-# --- 4. dev shell ---------------------------------------------------------
+# Export the workspace's Zephyr CMake package, as in the manual setup and CI.
+# A fresh checkout with --no-update has no sources to export yet.
+if [ "$do_west_update" -eq 1 ] || [ -f zephyr/CMakeLists.txt ]; then
+    log "Exporting the Zephyr CMake package (west zephyr-export)"
+    "${NIX[@]}" develop -c west zephyr-export
+elif [ "$do_build" -eq 1 ]; then
+    die "cannot build without Zephyr sources; re-run without --no-update"
+else
+    warn "Zephyr sources not found; skipping zephyr-export. Re-run without --no-update to finish workspace setup."
+fi
+
+# --- 4. optional firmware build ------------------------------------------
+
+if [ "$do_build" -eq 1 ]; then
+    log "Building Teensy 4.1 firmware"
+    "${NIX[@]}" develop -c west build -b teensy41 code/app -d code/build
+fi
+
+# Every nix develop invocation runs the flake's shellHook, which installs
+# both pre-commit and commit-msg hooks and provides pre-commit itself.
+# Ensure this also happens with --no-update --no-shell on a fresh checkout.
+log "Installing Git hooks via the Nix development shell"
+"${NIX[@]}" develop -c true
+
+# --- 5. dev shell ---------------------------------------------------------
 
 log "Setup complete."
 if [ "$enter_shell" -eq 1 ]; then
@@ -201,7 +239,6 @@ if [ "$enter_shell" -eq 1 ]; then
     exec "${NIX[@]}" develop
 else
     echo "Next steps:"
-    echo "  nix develop                          # enter the dev shell"
+    echo '  nix --extra-experimental-features "nix-command flakes" develop'
     echo "  west build -b teensy41 code/app -d code/build"
 fi
-

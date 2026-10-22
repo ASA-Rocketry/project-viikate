@@ -2,13 +2,11 @@
 
 Within this guide we will go over the steps of setting up the Project Viikate
 codebase. You will need approximately **2 hours of time** to download and setup
-everything necessary to build and flash the firmware for the avioncis unit.
+everything necessary to build and flash the firmware for the avionics unit.
 
 ## Prerequisites
 
-Before we setup the toolchain you will need to install nix, the tool we use for
-installing dependencies. While it is possible to avoid using nix, it can be
-quite difficult.
+Dependencies come from Nix; the setup script can install it for you.
 
 ### Windows users
 
@@ -39,7 +37,7 @@ sudo nano /etc/nix/nix.conf
 ```
 To save changes press 'Ctrl + O' and 'Enter', after which you can press 'Ctrl + X' to exit nano.
 
-## Seting up the codebase
+## Setting up the codebase
 
 Start by cloning the Project Viikate via the command: 
 ```ini
@@ -51,24 +49,39 @@ cd project-viikate
 ```
 Now you can run the next commands.
 
-Quick way:
+### Automated setup
+
+From the repository root, run:
 ```bash
-nix develop
-cd code
-west init -l .
-west update
-west zephyr-export
-west build -b teensy41 app
+./setup.sh --wizard --build
 ```
 
-Flashing:
+Sets up Nix, Zephyr, Git hooks, and builds the firmware. Add `--configure` to
+allow system configuration edits; see `./setup.sh --help` for all options.
+
+### Manual setup
+
+With Nix and flakes enabled, run from the repository root:
 ```bash
-west flash
+nix develop
+west init -l code
+west update
+west zephyr-export
+west build -b teensy41 code/app -d code/build
+```
+
+Skip `west init` on reruns. The Nix shell installs Git hooks automatically.
+
+### Flashing
+
+Inside the development shell, from the repository root:
+```bash
+west flash -d code/build
 ```
 
 Flashing and opening a serial console (the `/dev/ttyACM0` part might be different based on your system, asking ChatGPT will help if you can't find it):
 ```bash
-west flash && sleep 1 && picocom -b 115200 /dev/ttyACM0
+west flash -d code/build && sleep 1 && picocom -b 115200 /dev/ttyACM0
 ```
 
 When you open a new shell (i.e. when you open VSCode for the first time), you always have to run:
@@ -76,7 +89,8 @@ When you open a new shell (i.e. when you open VSCode for the first time), you al
 nix develop
 ```
 
-This is to install any dependencies.
+Without globally enabled flakes, use
+`nix --extra-experimental-features "nix-command flakes" develop` instead.
 
 ### Building from VS Code
 
