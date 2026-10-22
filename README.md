@@ -1,11 +1,14 @@
 # Project Viikate
 
-1. Clone this repository using `git clone https://github.com/ASA-Rocketry/Project-Viikate`.
-2. Open the repository in your preferred editor or just `cd` into it.
-3. Run `pip install pre-commit` to install the pre-commit hook manager.
-4. Run `pre-commit install --hook-type commit-msg` to activate all the local checks.
-5. Run `meson setup code/build code --wipe` to generate the project compilation commands.
-6. Run `meson compile -C code/build` to compile the binary. The final binary will be in `code/build/firmware/firmware`.
+## Getting started
+
+```bash
+git clone https://github.com/ASA-Rocketry/Project-Viikate
+cd Project-Viikate
+./setup.sh --wizard --build
+```
+
+Run `./setup.sh --help` for options, or see the [codebase setup guide](docs/codebase-setup.md) for prerequisites, manual setup, and flashing instructions.
 
 ## Structure
 
