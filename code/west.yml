@@ -4,7 +4,12 @@ manifest:
       path: zephyr
       url: https://github.com/zephyrproject-rtos/zephyr
       revision: 6eee4fecf07cc5f4382602dc26896ce3dfc9f3e0
-      import: true
+      import:
+        # Dependencies for Teensy 4.1 and the application's ST sensors.
+        name-allowlist:
+          - cmsis_6
+          - hal_nxp
+          - hal_st
 
     - name: cmsis-dsp
       url: https://github.com/ARM-software/CMSIS-DSP
