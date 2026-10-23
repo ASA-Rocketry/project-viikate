@@ -75,8 +75,9 @@ Skip `west init` on reruns. The Nix shell installs Git hooks automatically.
 ### Keeping West storage small
 
 `code/west.yml` imports only the modules needed by the current Teensy 4.1
-firmware: CMSIS 6 for the Arm core, the NXP HAL for the microcontroller, and
-the ST HAL for the sensors. CMSIS-DSP is pinned separately for signal processing.
+firmware: CMSIS 6 for the Arm core, the older CMSIS module required by the pinned
+CMSIS-DSP integration, the NXP HAL for the microcontroller, and the ST HAL for
+the sensors. CMSIS-DSP is pinned separately for signal processing.
 When adding hardware or enabling new Zephyr features, add any required modules
 to the manifest's `name-allowlist` and verify with a pristine build.
 

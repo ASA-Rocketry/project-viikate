@@ -7,6 +7,8 @@ manifest:
       import:
         # Dependencies for Teensy 4.1 and the application's ST sensors.
         name-allowlist:
+          # The pinned CMSIS-DSP integration still references this module.
+          - cmsis
           - cmsis_6
           - hal_nxp
           - hal_st
