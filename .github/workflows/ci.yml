@@ -21,7 +21,7 @@ jobs:
             set -e
             cd code
             west init -l .
-            west update
+            west update --narrow --fetch-opt=--depth=1
             west zephyr-export
             west build -b teensy41 app
           '
@@ -36,5 +36,3 @@ jobs:
               pre-commit run --hook-stage commit-msg --commit-msg-file /tmp/commit-msg
             fi
           '
-
-
