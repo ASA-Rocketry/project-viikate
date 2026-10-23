@@ -101,7 +101,7 @@ Project Viikate setup wizard
 This script will set up your development environment:
   1. Check WSL configuration (systemd) if you are on Windows/WSL.
   2. Install Nix if it is missing (official installer, asks for sudo).
-  3. Fetch the Zephyr RTOS sources and modules (~9 GB download).
+  3. Fetch Zephyr and the required modules (~2 GB workspace, excluding Nix).
   4. Export the Zephyr CMake package and install the Git hooks via Nix.
   5. Optionally build the Teensy 4.1 firmware.
   6. Drop you into the nix development shell when done.
@@ -112,7 +112,7 @@ EOF
     if ask "Allow changes to system files (/etc/nix/nix.conf, /etc/wsl.conf, needs sudo)?" n; then
         do_configure=1
     fi
-    if ! ask "Fetch Zephyr + modules now (~9 GB)?" y; then
+    if ! ask "Fetch Zephyr + required modules now (~2 GB workspace, excluding Nix)?" y; then
         do_west_update=0
     fi
     build_default=n
@@ -203,8 +203,8 @@ else
 fi
 
 if [ "$do_west_update" -eq 1 ]; then
-    log "Fetching Zephyr and modules (west update) - this can take a while"
-    "${NIX[@]}" develop -c west update
+    log "Fetching Zephyr and required modules with shallow history"
+    "${NIX[@]}" develop -c west update --narrow --fetch-opt=--depth=1
 fi
 
 # Export the workspace's Zephyr CMake package, as in the manual setup and CI.
