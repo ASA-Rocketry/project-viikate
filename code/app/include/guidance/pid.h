@@ -16,8 +16,8 @@ typedef struct {
     float kd;
 
     float integral;
-    float prev_error;
     float integral_limit; /* anti-windup clamp */
+    float prev_measurement;
     float output_limit; /* max correction in degrees */
 
     bool initialized; /* avoids derivative spike on first update */

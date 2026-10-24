@@ -1,7 +1,7 @@
 #include "guidance/pid.h"
 
-#include "zephyr/kernel.h"
-#include "zephyr/sys/printk.h"
+#include <zephyr/kernel.h>
+#include <zephyr/sys/printk.h>
 
 static const servo_t servo0 = DT_SERVO_GET(DT_NODELABEL(servo0));
 static const servo_t servo1 = DT_SERVO_GET(DT_NODELABEL(servo1));
@@ -21,10 +21,10 @@ static const servo_t servo3 = DT_SERVO_GET(DT_NODELABEL(servo3));
 static pid_t roll_pid = {
     .kp = 0.1745f * 180.0f / 3.14f,
     .ki = 0.0f,
-    .kd = 0.09f * 180.0f / 3.14f,
+    .kd = 0.0 * 0.09f * 180.0f / 3.14f,
     .integral = 0.0f,
-    .prev_error = 0.0f,
     .integral_limit = 20.0f,
+    .prev_measurement = 0.0f,
     .output_limit = 45.0f,
     .initialized = false,
 };
@@ -40,7 +40,6 @@ static float clampf(float val, float min, float max) {
 
 static void pid_reset(pid_t *pid) {
     pid->integral = 0.0f;
-    pid->prev_error = 0.0f;
     pid->initialized = false;
 }
 
@@ -50,27 +49,30 @@ static void pid_reset(pid_t *pid) {
  * dt: time since last update (seconds)
  * returns: correction output (degrees), clamped to output_limit
  */
-static float pid_update(pid_t *pid, float error, float dt) {
+static float
+pid_update(pid_t *pid, float current_roll, float target_roll, float dt) {
+    float error = target_roll - current_roll;
+    printk("error %f\n", (double)error);
+
     if (dt <= 0.0f) {
         dt = 1e-3f; /* avoid div-by-zero */
     }
 
     /* Integral term with anti-windup */
     pid->integral += error * dt;
-    pid->integral =
-        clampf(pid->integral, -pid->integral_limit, pid->integral_limit);
+    pid->integral = clampf(pid->integral, -pid->integral_limit, pid->integral_limit);
 
     /* Derivative term (skip on first sample to avoid spike) */
     float derivative = 0.0f;
     if (pid->initialized) {
-        derivative = (error - pid->prev_error) / dt;
+        derivative = (pid->prev_measurement - current_roll)
+            / dt;  // Avoids kick with new setpoint.
     } else {
         pid->initialized = true;
     }
-    pid->prev_error = error;
+    pid->prev_measurement = current_roll;
 
-    float output =
-        (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
+    float output = (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
 
     return clampf(output, -pid->output_limit, pid->output_limit);
 }
@@ -87,10 +89,7 @@ void roll_control_reset(void) {
  * mixing). Adjust the sign/mapping to match your mechanism.
  */
 void roll_control_update(float current_roll, float target_roll, float dt) {
-    float error = target_roll - current_roll;
-    printk("erorr %f\n", (double)error);
-
-    float correction = pid_update(&roll_pid, error, dt);
+    float correction = pid_update(&roll_pid, current_roll, target_roll, dt);
 
     float angle0 = SERVO0_NEUTRAL + correction;
     float angle1 = SERVO1_NEUTRAL + correction;
