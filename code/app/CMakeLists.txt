@@ -8,7 +8,6 @@ target_sources(app PRIVATE
     src/main.c
     src/servo.c
     src/sensors.c
-    src/guidance/kalman.c
-    src/guidance/filters.c
+    src/guidance/attitude.c
     src/guidance/pid.c
 )

@@ -6,11 +6,6 @@
         zephyr,console = &cdc_acm_uart0;
         zephyr,shell-uart = &cdc_acm_uart0;
     };
-    
-	aliases {
-		stream0 = &imu;
-		stream1 = &barometer;
-	};
 
     servo0: servo0 {
         compatible = "pwm-servo";
@@ -76,17 +71,6 @@
     };
 };
 
-&lpi2c1 {
-    status = "okay";
-    pinctrl-0 = <&pinmux_lpi2c1>;
-    pinctrl-names = "default";
-
-    barometer: bme280@76 {
-        compatible = "bosch,bme280";
-        reg = <0x76>;
-    };
-};
-
 &pinctrl {
 	pinmux_flexpwm4_ch2: pinmux_flexpwm4_ch2 {
 		group0 {
@@ -140,4 +124,3 @@
 	nxp,prescaler = <64>;
     nxp,reload = "immediate";
 };
-
