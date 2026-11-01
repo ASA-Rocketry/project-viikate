@@ -6,6 +6,7 @@
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/time_units.h>
 
 #include "dsp/controller_functions.h"
 #include "dsp/filtering_functions.h"
@@ -15,7 +16,7 @@
 #include "math/linmath.h"
 #include "sensors.h"
 #include "servo.h"
-#include "zephyr/sys/time_units.h"
+#include "state_machine.h"
 
 #define IMU_NODE DT_NODELABEL(imu)
 #define BAROMETER_NODE DT_NODELABEL(barometer)
@@ -32,6 +33,7 @@ enum direction {
 
 #define TASK_BAROMETER_READ_STACK_SIZE 4096
 #define TASK_BAROMETER_READ_PRIORITY 1
+#define AVG_COUNT 256
 
 K_THREAD_DEFINE(
     task_barometer_read_thread_id,
@@ -44,48 +46,6 @@ K_THREAD_DEFINE(
     0,
     0
 );
-
-static int sweep_servo(const servo_t servo) {
-    float angle = -90.0f;  // start at minimum position
-    enum direction dir = UP;
-    int ret;
-
-    printk("Servomotor control (angle based)\n");
-
-    if (!pwm_is_ready_dt(&servo.spec)) {
-        printk("Error: PWM device %s is not ready\n", servo.spec.dev->name);
-        return -ENODEV;
-    }
-
-    while (1) {
-        ret = servo_set_angle(servo, angle);
-        if (ret < 0) {
-            printk("Error %d: failed to set angle %.1f\n", ret, (double)angle);
-            return ret;
-        }
-
-        // Step size = degrees per iteration
-        const float step_size = 1.0f;
-
-        if (dir == UP) {
-            angle += step_size;
-            if (angle >= 90.0f) {
-                angle = 90.0f;
-                dir = DOWN;
-            }
-        } else {
-            angle -= step_size;
-            if (angle <= -90.0f) {
-                angle = -90.0f;
-                dir = UP;
-            }
-        }
-
-        k_sleep(K_MSEC(20));  // Smooth sweep speed
-    }
-
-    return 0;
-}
 
 double pressure_to_altitude(double pressure_pa) {
     const double P0 = 101325.0;  // Sea level pressure (Pa)
@@ -138,6 +98,7 @@ LINMATH_H_FUNC float quat_get_roll(quat const q) {
 }
 
 int main(void) {
+    rbf_init();
     barometer_init(barometer);
     imu_init(imu);
 
@@ -145,14 +106,14 @@ int main(void) {
     barometer_sample_t baro_sample;
     int ret;
 
-    assert(imu_filter != NULL);
+    // assert(imu_filter != NULL);
 
     float drift_last = 0.0f;
 
     vec3 avg_accel = {0}, avg_gyro = {0};
 
     vec3 g = {0};
-#define AVG_COUNT 256
+
     for (int k_idx = 0; k_idx < AVG_COUNT; ++k_idx) {
         ret = k_msgq_get(&imu_msgq, &imu_sample, K_FOREVER);
         transform_coords(&imu_sample);
@@ -162,13 +123,11 @@ int main(void) {
 
     kalman_filter_t k = kalman_init(g);
 
-#define AVG_COUNT 256
     for (int k_idx = 0; k_idx < AVG_COUNT; ++k_idx) {
         ret = k_msgq_get(&imu_msgq, &imu_sample, K_FOREVER);
         transform_coords(&imu_sample);
         vec3 a;
         vec3_sub(a, imu_sample.acceleration, g);
-
         vec3_add(avg_accel, avg_accel, a);
         vec3_add(avg_gyro, avg_gyro, imu_sample.angular_rate);
     }
@@ -182,7 +141,6 @@ int main(void) {
     float base_altitude = 0.0f;
     for (int k_idx = 0; k_idx < 8; ++k_idx) {
         ret = k_msgq_get(&barometer_msgq, &baro_sample, K_FOREVER);
-
         base_altitude += pressure_to_altitude((double)baro_sample.pressure);
     }
 
@@ -190,7 +148,9 @@ int main(void) {
 
     uint32_t loop_counter = 0;
     uint64_t time = 0;
+    uint64_t last_roll_update_ns = 0;
     int loops = 0;
+    bool controls_checked = false;
 
     roll_control_reset();
 
@@ -206,6 +166,7 @@ int main(void) {
 
         time += k_ticks_to_ns_floor64(k_uptime_ticks()) - start;
 
+        /* Read barometer if data is available*/
         while ((ret = k_msgq_get(&barometer_msgq, &baro_sample, K_NO_WAIT))
                == 0) {
             float altitude = (float)pressure_to_altitude(baro_sample.pressure)
@@ -213,7 +174,79 @@ int main(void) {
             k.position[1] = altitude;
         }
 
-        /* Print state every 500 iterations (~500 ms at 1 kHz) */
+        switch (state_machine_update(&k, &imu_sample)) {
+            case Boot:
+                // TODO: Beep every 10 seconds
+                break;
+            case Safe:
+                static const servo_t servo0 =
+                    DT_SERVO_GET(DT_NODELABEL(servo0));
+                static const servo_t servo1 =
+                    DT_SERVO_GET(DT_NODELABEL(servo1));
+                static const servo_t servo2 =
+                    DT_SERVO_GET(DT_NODELABEL(servo2));
+                static const servo_t servo3 =
+                    DT_SERVO_GET(DT_NODELABEL(servo3));
+                if (!controls_checked) {
+                    servo_set_angle(servo0, -90.0f);
+                    servo_set_angle(servo1, -90.0f);
+                    servo_set_angle(servo2, -90.0f);
+                    servo_set_angle(servo3, -90.0f);
+                    k_sleep(K_MSEC(500));
+                    servo_set_angle(servo0, 90.0f);
+                    servo_set_angle(servo1, 90.0f);
+                    servo_set_angle(servo2, 90.0f);
+                    servo_set_angle(servo3, 90.0f);
+                    k_sleep(K_MSEC(500));
+                    servo_set_angle(servo0, 0.0f);
+                    servo_set_angle(servo1, 0.0f);
+                    servo_set_angle(servo2, 0.0f);
+                    servo_set_angle(servo3, 0.0f);
+                    controls_checked = true;
+                }  // TODO: This current implementation is blocking with k_sleep.
+                // TODO: Beep every 5 seconds
+                break;
+            case Pad:
+                // TODO: Beep every second
+                break;
+
+            case Launch:
+                break;
+
+            case Guidance:
+                if (loop_counter % 20 == 0) {
+                    uint64_t now = k_ticks_to_ns_floor64(k_uptime_ticks());
+                    float dt = last_roll_update_ns == 0
+                        ? 0.02f
+                        : (float)(now - last_roll_update_ns) * 1e-9f;
+                    last_roll_update_ns = now;
+                    roll_control_update(quat_get_roll(k.orientation), 0.0f, dt);
+                }
+                break;
+
+            case Fault:
+                roll_control_update(0.0f, 0.0f, 0.02f);
+                break;
+
+            case Recovery:
+                roll_control_update(0.0f, 0.0f, 0.02f);
+                // TODO: Activate the recovery device.
+                break;
+
+            case Landing:
+                // TODO: Save sd-card
+                // TODO: Reduce polling rate of sensors
+                // TODO: Wait x minutes and start beeping every y seconds.
+                break;
+
+            case Abort:
+                // TODO: Constant beep
+                break;
+
+            default:
+                break;
+        }
+
         if (loop_counter % 500 == 0) {
             printk(
                 "loops: %d total_time: %f time_per_kalman: %f\n",
@@ -230,6 +263,7 @@ int main(void) {
                 "    acc_bias = [%.4f, %.4f, %.4f]\n"
                 "    gyro_bias = [%.4f, %.4f, %.4f]\n"
                 "    g = %.4f\n"
+                "    RBF = %d\n"
                 "    t_last = %llu ns\n",
                 (double)k.position[0],
                 (double)k.position[1],
@@ -251,24 +285,13 @@ int main(void) {
                 (double)k.gyroscope_bias[1],
                 (double)k.gyroscope_bias[2],
                 (double)k.gravity,
+                (bool)rbf_is_removed(),
                 (unsigned long long)k.last_measurement_timestamp_ns
             );
             loops = 0;
-        }
-
-        static uint64_t last_roll_update_ns;
-
-        if (loop_counter % 20 == 0) {
-            uint64_t now = k_ticks_to_ns_floor64(k_uptime_ticks());
-            float dt = last_roll_update_ns == 0
-                ? 0.02f
-                : (float)(now - last_roll_update_ns) * 1e-9f;
-            last_roll_update_ns = now;
-
-            roll_control_update(quat_get_roll(k.orientation), 0.0f, dt);
-        }
+        } /* Print state every 500 iterations (~500 ms at 1 kHz) */
 
         loop_counter++;
-        k_sleep(K_MSEC(1));  // 1 kHz update rate
+        k_sleep(K_MSEC(1));  // 1 kHz update
     }
 }
