@@ -10,7 +10,17 @@
 	aliases {
 		stream0 = &imu;
 		stream1 = &barometer;
+        rbf = &rbf_sw;
 	};
+
+    gpio_keys {
+        compatible = "gpio-keys";
+
+        rbf_sw: rbf_sw {
+            gpios = <&gpio1 30 (GPIO_PULL_UP | GPIO_ACTIVE_LOW)>; // Todo: Change to the correct pin (31?)
+            label = "RBF";
+        };
+    };   
 
     servo0: servo0 {
         compatible = "pwm-servo";
@@ -26,7 +36,7 @@
         max-pulse = <PWM_USEC(2400)>;
     };
 
-    servo2: servod {
+    servo2: servo2 {
         compatible = "pwm-servo";
         pwms = <&flexpwm2_pwm0 0 PWM_MSEC(10) PWM_POLARITY_NORMAL>;
         min-pulse = <PWM_USEC(400)>;
@@ -45,6 +55,10 @@
     cdc_acm_uart0: cdc_acm_uart0 {
         compatible = "zephyr,cdc-acm-uart";
     };
+};
+
+&gpio1 {
+    status = "okay";
 };
 
 &gpio3 {
@@ -115,6 +129,17 @@
 			nxp,speed = "200-mhz";
 		};
 	};
+    pinmux_rbf: pinmux_rbf {
+        group0 {
+            pinmux = <&iomuxc_gpio_ad_b1_15_gpio1_io31>;
+            drive-strength = "r0-7";
+            slew-rate = "slow";
+            nxp,speed = "200-mhz";
+            input-schmitt-enable;
+            bias-pull-up;
+            bias-pull-up-value = "100k";
+        };
+    };
 };
 
 &flexpwm4_pwm2 {

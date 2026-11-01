@@ -24,3 +24,6 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3);
 
 int imu_init(const struct device *imu);
 int barometer_init(const struct device *barometer);
+
+int rbf_init(void);
+bool rbf_is_removed(void);

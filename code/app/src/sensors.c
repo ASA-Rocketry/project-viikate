@@ -1,6 +1,8 @@
 #include "sensors.h"
 
 #include <stdalign.h>
+#include <zephyr/drivers/gpio.h>
+#include <zephyr/drivers/pinctrl.h>
 #include <zephyr/drivers/sensor.h>
 
 #include "math/linmath.h"
@@ -13,6 +15,12 @@
 #define BAROMETER_TASK_FREQUENCY_HZ 10
 #define BAROMETER_TASK_PERIOD (1000 / BAROMETER_TASK_FREQUENCY_HZ)
 
+#define TASK_RBF_STACK_SIZE 1024
+#define TASK_RBF_PRIORITY 3
+#define RBF_TASK_PERIOD_MS 25
+#define RBF_SWITCH_SAMPLES \
+    50  // Similar consequent samples required. Avoid switch bounce.
+
 K_MSGQ_DEFINE(
     imu_msgq,
     sizeof(imu_sample_t),
@@ -23,7 +31,7 @@ K_MSGQ_DEFINE(
 K_MSGQ_DEFINE(
     barometer_msgq,
     sizeof(barometer_sample_t),
-    IMU_QUEUE_SIZE,
+    BAROMETER_QUEUE_SIZE,
     alignof(barometer_sample_t)
 );
 
@@ -92,7 +100,7 @@ int imu_init(const struct device *imu) {
         return ret;
     }
 
-    printk("IMU initialized successfuly\n");
+    printk("IMU initialized successfully\n");
 
     return 0;
 }
@@ -153,8 +161,6 @@ int barometer_init(const struct device *barometer) {
         k_msleep(10);
         device_init(barometer);
         ret = device_is_ready(barometer);
-        if (ret == 0)
-            return 0;
         return ret;
     }
 
@@ -162,3 +168,84 @@ int barometer_init(const struct device *barometer) {
 
     return 0;
 }
+
+static const struct gpio_dt_spec rbf = GPIO_DT_SPEC_GET(DT_ALIAS(rbf), gpios);
+
+static bool rbf_removed = false;
+static bool rbf_last_raw = false;
+static int rbf_same_count = 0;
+
+static bool rbf_read_raw(void) {
+    int v = gpio_pin_get_dt(&rbf);
+    if (v < 0) {
+        return false;
+    }
+    return v == 0;
+}
+
+int rbf_init(void) {
+    int ret;
+
+    if (!gpio_is_ready_dt(&rbf)) {
+        printk("RBF gpio not ready\n");
+        return 0;
+    }
+
+    ret = gpio_pin_configure_dt(&rbf, GPIO_INPUT);
+    if (ret != 0) {
+        printk("RBF configure failed\n");
+        return 0;
+    }
+
+    k_busy_wait(2000);  // Time for pull up to settle
+    rbf_removed = rbf_read_raw();
+    rbf_last_raw = rbf_removed;
+
+    printk("RBF initialized successfully\n");
+
+    return ret;
+}
+
+static void rbf_update(void) {
+    bool raw = rbf_read_raw();
+
+    if (raw == rbf_last_raw) {
+        if (rbf_same_count < RBF_SWITCH_SAMPLES) {
+            rbf_same_count++;
+        }
+    } else {
+        rbf_last_raw = raw;
+        rbf_same_count = 1;
+    }
+
+    if (raw != rbf_removed && rbf_same_count >= RBF_SWITCH_SAMPLES) {
+        rbf_removed = raw;
+    }
+}
+
+bool rbf_is_removed(void) {
+    return rbf_removed;
+}
+
+static void task_rbf(void *arg1, void *arg2, void *arg3) {
+    (void)arg1;
+    (void)arg2;
+    (void)arg3;
+
+    while (1) {
+        rbf_update();
+        k_msleep(RBF_TASK_PERIOD_MS);
+    }
+}
+
+K_THREAD_DEFINE(
+    task_rbf_thread_id,
+    TASK_RBF_STACK_SIZE,
+    task_rbf,
+    NULL,
+    NULL,
+    NULL,
+    TASK_RBF_PRIORITY,
+    0,
+    0
+);
