@@ -468,6 +468,7 @@ typedef float quat[4];
 #define quat_norm vec4_norm
 #define quat_scale vec4_scale
 #define quat_mul_inner vec4_mul_inner
+#define quat_dup vec4_dup
 
 LINMATH_H_FUNC void quat_identity(quat q) {
     q[0] = q[1] = q[2] = 0.f;
