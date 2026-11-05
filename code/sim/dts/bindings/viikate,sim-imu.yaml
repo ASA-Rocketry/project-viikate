@@ -1,0 +1,5 @@
+description: Simulated accelerometer + gyroscope fed by the SIL plant.
+
+compatible: "viikate,sim-imu"
+
+include: [sensor-device.yaml]
