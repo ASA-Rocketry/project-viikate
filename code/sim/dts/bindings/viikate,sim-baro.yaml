@@ -1,0 +1,5 @@
+description: Simulated barometer fed by the SIL plant.
+
+compatible: "viikate,sim-baro"
+
+include: [sensor-device.yaml]

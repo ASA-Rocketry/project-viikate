@@ -1,0 +1,14 @@
+description: Simulated PWM controller that hands servo pulses to the SIL plant.
+
+compatible: "viikate,sim-pwm"
+
+include: [pwm-controller.yaml, base.yaml]
+
+properties:
+  "#pwm-cells":
+    const: 3
+
+pwm-cells:
+  - channel
+  - period
+  - flags
