@@ -2,13 +2,11 @@
 
 Within this guide we will go over the steps of setting up the Project Viikate
 codebase. You will need approximately **2 hours of time** to download and setup
-everything necessary to build and flash the firmware for the avioncis unit.
+everything necessary to build and flash the firmware for the avionics unit.
 
 ## Prerequisites
 
-Before we setup the toolchain you will need to install nix, the tool we use for
-installing dependencies. While it is possible to avoid using nix, it can be
-quite difficult.
+Dependencies come from Nix; the setup script can install it for you.
 
 ### Windows users
 
@@ -39,7 +37,7 @@ sudo nano /etc/nix/nix.conf
 ```
 To save changes press 'Ctrl + O' and 'Enter', after which you can press 'Ctrl + X' to exit nano.
 
-## Seting up the codebase
+## Setting up the codebase
 
 Start by cloning the Project Viikate via the command: 
 ```ini
@@ -51,24 +49,74 @@ cd project-viikate
 ```
 Now you can run the next commands.
 
-Quick way:
+### Automated setup
+
+From the repository root, run:
 ```bash
-nix develop
-cd code
-west init -l .
-west update
-west zephyr-export
-west build -b teensy41 app
+./setup.sh --wizard --build
 ```
 
-Flashing:
+Sets up Nix, Zephyr, Git hooks, and builds the firmware. Add `--configure` to
+allow system configuration edits; see `./setup.sh --help` for all options.
+
+### Manual setup
+
+With Nix and flakes enabled, run from the repository root:
 ```bash
-west flash
+nix develop
+west init -l code
+west update --narrow --fetch-opt=--depth=1
+west zephyr-export
+west build -b teensy41 code/app -d code/build
+```
+
+Skip `west init` on reruns. The Nix shell installs Git hooks automatically.
+
+### Keeping West storage small
+
+`code/west.yml` imports only the modules needed by the current Teensy 4.1
+firmware: CMSIS 6 for the Arm core, the older CMSIS module required by the pinned
+CMSIS-DSP integration, the NXP HAL for the microcontroller, and the ST HAL for
+the sensors. CMSIS-DSP is pinned separately for signal processing.
+When adding hardware or enabling new Zephyr features, add any required modules
+to the manifest's `name-allowlist` and verify with a pristine build.
+
+Use `west update --narrow --fetch-opt=--depth=1` for subsequent dependency updates
+too. `--narrow` fetches the pinned revision directly instead of all remote
+branches and tags; `--depth=1` limits its history. This retains the manifest's
+exact commit pins. Plain `west update` still respects the module allowlist,
+but may fetch more history. Shallow fetching does not shrink existing
+full-history clones.
+
+If upgrading from the unrestricted manifest, old checkouts are not removed
+automatically. From the repository root, first inspect them with
+`west forall -c 'git status --short'` **before changing manifests** and preserve
+any local changes or commits. Once all dependency checkouts are disposable,
+remove only the downloaded directories `zephyr/`, `modules/`, `bootloader/`, and
+`tools/`. Keep `.west/` and your application source. Then, inside `nix develop`,
+recreate the dependencies and build from scratch:
+
+```bash
+west update --narrow --fetch-opt=--depth=1
+west zephyr-export
+west build -p always -b teensy41 code/app -d code/build
+```
+
+The generated `code/build/` directory is also disposable and is recreated by
+the build. To inspect local storage use, run `du -sh zephyr modules code/build`
+from the repository root. The Nix toolchain occupies additional space in the
+shared Nix store, outside this workspace.
+
+### Flashing
+
+Inside the development shell, from the repository root:
+```bash
+west flash -d code/build
 ```
 
 Flashing and opening a serial console (the `/dev/ttyACM0` part might be different based on your system, asking ChatGPT will help if you can't find it):
 ```bash
-west flash && sleep 1 && picocom -b 115200 /dev/ttyACM0
+west flash -d code/build && sleep 1 && picocom -b 115200 /dev/ttyACM0
 ```
 
 When you open a new shell (i.e. when you open VSCode for the first time), you always have to run:
@@ -76,7 +124,8 @@ When you open a new shell (i.e. when you open VSCode for the first time), you al
 nix develop
 ```
 
-This is to install any dependencies.
+Without globally enabled flakes, use
+`nix --extra-experimental-features "nix-command flakes" develop` instead.
 
 ### Building from VS Code
 
