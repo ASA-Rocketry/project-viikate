@@ -15,6 +15,11 @@ void ekf_predict(kalman_filter_t *s, imu_sample_t sample) {
     vec3_sub(a, sample.acceleration, s->accelerometer_bias);
     vec3_sub(w, sample.angular_rate, s->gyroscope_bias);
 
+    // Use prior attitude to rotate acceleration to world-frame a_w = R(q)*a-g
+    vec3 a_world;
+    quat_mul_vec3(a_world, s->orientation, a);
+    a_world[2] -= s->gravity;
+
     // Save prior attitude for Jacobian evaluation
     quat q_prev;
     quat_dup(q_prev, s->orientation);
@@ -25,10 +30,6 @@ void ekf_predict(kalman_filter_t *s, imu_sample_t sample) {
     quat_scale(q_dot, q_dot, 0.5f * dt);
     quat_add(s->orientation, s->orientation, q_dot);
     quat_norm(s->orientation, s->orientation);
-
-    vec3 a_world;
-    quat_mul_vec3(a_world, s->orientation, a);
-    a_world[2] -= s->gravity;
 
     vec3 pos_term;
     vec3_scale(pos_term, s->velocity, dt);
@@ -189,6 +190,7 @@ void ekf_predict(kalman_filter_t *s, imu_sample_t sample) {
 
     // 7. Add Process Noise: Q = V * M * V^T + Q_bias
     // 7a. Accel control noise projection: W_a = R * M_a * R^T [3x3]
+    //TODO: Simplify if all three accelerometer axes share the same noise variance
     const float dt3_2 = 0.5f * dt2 * dt;
     const float dt4_4 = 0.25f * dt2 * dt2;
     const float dt2_4 = 0.25f * dt2;
@@ -239,10 +241,11 @@ static inline void quat_from_gravity(quat q, const vec3 accel) {
     g_norm[2] = accel[2] / norm;
 
     // Pitch/Roll from accelerometer
-    float pitch = atanf(
-        -g_norm[0] / sqrtf(g_norm[1] * g_norm[1] + g_norm[2] * g_norm[2])
+    float pitch = atan2f(
+        -g_norm[0],
+        sqrtf(g_norm[1] * g_norm[1] + g_norm[2] * g_norm[2])
     );
-    float roll = atanf(g_norm[1] / g_norm[2]);
+    float roll = atan2f(g_norm[1], g_norm[2]);
     float yaw = 0.0f;  // no magnetic reference
 
     float cr = cosf(roll * 0.5f);
