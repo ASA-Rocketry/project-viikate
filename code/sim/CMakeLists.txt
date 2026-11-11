@@ -45,6 +45,8 @@ if(CONFIG_VIIKATE_SIM)
     zephyr_library_sources(
       plant/rocket/rocket_plant.c
       plant/rocket/rocket_frames.c
+      plant/rocket/rocket_design.c
+      plant/rocket/rocket_io_native.c
       ${VIIKATE_PLANT_CODEGEN_SOURCES}
     )
   endif()

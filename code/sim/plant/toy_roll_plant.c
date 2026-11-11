@@ -174,6 +174,18 @@ void viikate_plant_step(
     fill_outputs(out);
 }
 
-const char *viikate_plant_error(void) {
+static const char *load_error;
+
+int viikate_plant_load_design(const char *path) {
+    (void)path;
+    load_error = "toy plant has no design file";
+    return -1;
+}
+
+const char *viikate_plant_design_name(void) {
     return NULL;
+}
+
+const char *viikate_plant_error(void) {
+    return load_error;
 }

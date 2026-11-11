@@ -34,7 +34,7 @@ def setUpModule():
 class FlightTest(unittest.TestCase):
     def test_header(self):
         self.assertEqual(FLIGHT.plant, "rocket_plant")
-        self.assertEqual(FLIGHT.interface_version, 2)
+        self.assertEqual(FLIGHT.interface_version, 3)
 
     def test_pad_is_quiet_before_ignition(self):
         pad = [row for row in FLIGHT.rows if row["t_ms"] < IGNITION_MS]

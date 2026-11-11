@@ -157,6 +157,8 @@ def build_replay():
             SIM_DIR / "tools" / "plant_replay.c",
             ROCKET_DIR / "rocket_plant.c",
             ROCKET_DIR / "rocket_frames.c",
+            ROCKET_DIR / "rocket_design.c",
+            ROCKET_DIR / "rocket_io_stdio.c",
             *generated,
         ],
         REPLAY_BUILD_DIR / "plant_replay",

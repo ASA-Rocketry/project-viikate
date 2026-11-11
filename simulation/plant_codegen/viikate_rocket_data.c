@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.3
+ * Model version                  : 5.4
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
+ * C/C++ source code generated on : Wed Nov 11 15:55:26 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -42,15 +42,7 @@ const ConstP_viikate_rocket_T viikate_rocket_ConstP = {
   /* Expression: N
    * Referenced by: '<S85>/Lift directions'
    */
-  { 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 },
-
-  /* Pooled Parameter (Expression: matrix)
-   * Referenced by:
-   *   '<S81>/[0]'
-   *   '<S81>/[1]'
-   */
-  { 0.0027, 0.0, 0.0, 0.0, 0.1655, 0.0, 0.0, 0.0, 0.1655, 0.0027, 0.0, 0.0, 0.0,
-    0.177, 0.0, 0.0, 0.0, 0.177 }
+  { 0.0, 0.0, 0.0, 0.0, -1.0, 0.0, 1.0, 0.0, 0.0, -1.0, 0.0, 1.0 }
 };
 
 /*

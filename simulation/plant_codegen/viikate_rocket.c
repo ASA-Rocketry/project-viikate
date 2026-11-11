@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.3
+ * Model version                  : 5.4
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
+ * C/C++ source code generated on : Wed Nov 11 15:55:26 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -86,12 +86,16 @@ double rp_ignition_time_s = 3.0;       /* Variable: rp_ignition_time_s
                                         */
 double rp_inertia_empty_kgm2[9] = { 0.0027, 0.0, 0.0, 0.0, 0.1655, 0.0, 0.0, 0.0,
   0.1655 } ;                           /* Variable: rp_inertia_empty_kgm2
-                                        * Referenced by: '<S79>/slope'
+                                        * Referenced by:
+                                        *   '<S79>/slope'
+                                        *   '<S81>/[0]'
                                         */
 
 double rp_inertia_full_kgm2[9] = { 0.0027, 0.0, 0.0, 0.0, 0.177, 0.0, 0.0, 0.0,
   0.177 } ;                            /* Variable: rp_inertia_full_kgm2
-                                        * Referenced by: '<S79>/slope'
+                                        * Referenced by:
+                                        *   '<S79>/slope'
+                                        *   '<S81>/[1]'
                                         */
 
 double rp_length_m = 1.27;             /* Variable: rp_length_m
@@ -539,7 +543,6 @@ void viikate_rocket_step(void)
     double rtb_MatrixConcatenation[18];
     double rtb_ci[12];
     double rtb_ni[12];
-    double rtb_Selector2[9];
     double rtb_VectorConcatenate_b[9];
     double rtb_ElementProduct[6];
     double rtb_M[3];
@@ -559,6 +562,7 @@ void viikate_rocket_step(void)
     double rtb_Liftmagnitude_idx_1;
     double rtb_Liftmagnitude_idx_2;
     double rtb_Liftmagnitude_idx_3;
+    double rtb_Selector2_idx_6;
     double rtb_Sum_k_0;
     double rtb_V;
     double rtb_VectorConcatenate_o_tmp;
@@ -566,14 +570,13 @@ void viikate_rocket_step(void)
     double rtb_ci_1;
     double rtb_ci_idx_0;
     double rtb_ci_idx_1;
-    double rtb_ci_idx_2;
     double rtb_ixj;
     double rtb_ixk;
     double rtb_ixk_f;
     double rtb_jxi;
     double rtb_jxi_n;
     double rtb_kxj;
-    double rtb_ni_idx_1;
+    double rtb_ni_idx_2;
     double rtb_q0q1q2q3_idx_0;
     double rtb_q0q1q2q3_idx_1;
     double rtb_q0q1q2q3_idx_2;
@@ -582,12 +585,10 @@ void viikate_rocket_step(void)
     double servo_lag_idx_1;
     double servo_lag_idx_2;
     double servo_lag_idx_3;
-    int64_t tmp_1;
     int32_t i;
     int32_t mass_o2;
+    int32_t rp_inertia_empty_kgm2_tmp;
     int32_t rtb_MatrixConcatenation_tmp;
-    int32_t rtb_PreLookUpIndexSearch_o1;
-    int32_t tableOffset;
     int8_t rtAction;
     int8_t rtPrevAction;
     bool tmp;
@@ -866,11 +867,11 @@ void viikate_rocket_step(void)
        *  Reshape: '<S28>/Reshape (9) to [3x3] column-major'
        *  Sum: '<S74>/Sum'
        */
-      rtb_ci_idx_2 = Saturation * viikate_rocket_ConstP.Constant_Value_c[i];
-      rtb_ixj += rtb_VectorConcatenate_b[3 * i] * rtb_ci_idx_2;
+      rtb_ni_idx_2 = Saturation * viikate_rocket_ConstP.Constant_Value_c[i];
+      rtb_ixj += rtb_VectorConcatenate_b[3 * i] * rtb_ni_idx_2;
       rtb_VectorConcatenate_o_tmp += rtb_VectorConcatenate_b[3 * i + 1] *
-        rtb_ci_idx_2;
-      rtb_Sum_k_0 += rtb_VectorConcatenate_b[3 * i + 2] * rtb_ci_idx_2;
+        rtb_ni_idx_2;
+      rtb_Sum_k_0 += rtb_VectorConcatenate_b[3 * i + 2] * rtb_ni_idx_2;
 
       /* Integrator: '<S2>/ub,vb,wb' */
       rtb_jxi_n = viikate_rocket_X.ubvbwb_CSTATE[i];
@@ -908,14 +909,14 @@ void viikate_rocket_step(void)
 
     /* Product: '<S85>/Matrix Multiply' */
     Integrator_CSTATE = 0.0;
-    rtb_ni_idx_1 = 0.0;
-    rtb_kxj = 0.0;
+    rtb_Selector2_idx_6 = 0.0;
+    rtb_ni_idx_2 = 0.0;
     rtb_V = 0.0;
 
     /* Product: '<S85>/Matrix Multiply1' */
     rtb_ci_idx_0 = 0.0;
     rtb_ci_idx_1 = 0.0;
-    rtb_ci_idx_2 = 0.0;
+    rtb_kxj = 0.0;
     rtb_ixk = 0.0;
     for (i = 0; i < 3; i++) {
       /* Product: '<S85>/Matrix Multiply' incorporates:
@@ -924,8 +925,8 @@ void viikate_rocket_step(void)
       rtb_Gain2 = rtb_Product2_ih[i];
       mass_o2 = i << 2;
       Integrator_CSTATE += rtb_ni[mass_o2] * rtb_Gain2;
-      rtb_ni_idx_1 += rtb_ni[mass_o2 + 1] * rtb_Gain2;
-      rtb_kxj += rtb_ni[mass_o2 + 2] * rtb_Gain2;
+      rtb_Selector2_idx_6 += rtb_ni[mass_o2 + 1] * rtb_Gain2;
+      rtb_ni_idx_2 += rtb_ni[mass_o2 + 2] * rtb_Gain2;
       rtb_V += rtb_ni[mass_o2 + 3] * rtb_Gain2;
 
       /* Product: '<S85>/Matrix Multiply1' incorporates:
@@ -933,7 +934,7 @@ void viikate_rocket_step(void)
        */
       rtb_ci_idx_0 += rtb_ci[mass_o2] * rtb_Gain2;
       rtb_ci_idx_1 += rtb_ci[mass_o2 + 1] * rtb_Gain2;
-      rtb_ci_idx_2 += rtb_ci[mass_o2 + 2] * rtb_Gain2;
+      rtb_kxj += rtb_ci[mass_o2 + 2] * rtb_Gain2;
       rtb_ixk += rtb_ci[mass_o2 + 3] * rtb_Gain2;
     }
 
@@ -944,13 +945,13 @@ void viikate_rocket_step(void)
     rtb_ci_idx_0 = rp_canard_cl_alpha * Integrator_CSTATE;
 
     /* Trigonometry: '<S85>/Atan2' */
-    Integrator_CSTATE = rt_atan2d_snf(rtb_ni_idx_1, rtb_ci_idx_1);
+    Integrator_CSTATE = rt_atan2d_snf(rtb_Selector2_idx_6, rtb_ci_idx_1);
 
     /* Gain: '<S85>/Gain' */
-    rtb_ni_idx_1 = rp_canard_cl_alpha * Integrator_CSTATE;
+    rtb_Selector2_idx_6 = rp_canard_cl_alpha * Integrator_CSTATE;
 
     /* Trigonometry: '<S85>/Atan2' */
-    Integrator_CSTATE = rt_atan2d_snf(rtb_kxj, rtb_ci_idx_2);
+    Integrator_CSTATE = rt_atan2d_snf(rtb_ni_idx_2, rtb_kxj);
 
     /* Gain: '<S85>/Gain' */
     rtb_ci_idx_1 = rp_canard_cl_alpha * Integrator_CSTATE;
@@ -980,7 +981,7 @@ void viikate_rocket_step(void)
      *  Gain: '<S85>/Gain'
      */
     rtb_Liftmagnitude_idx_0 = rtb_ci_idx_0 * rtb_kxj;
-    rtb_Liftmagnitude_idx_1 = rtb_ni_idx_1 * rtb_kxj;
+    rtb_Liftmagnitude_idx_1 = rtb_Selector2_idx_6 * rtb_kxj;
     rtb_Liftmagnitude_idx_2 = rtb_ci_idx_1 * rtb_kxj;
     rtb_Liftmagnitude_idx_3 = Integrator_CSTATE * rtb_kxj;
     for (mass_o2 = 0; mass_o2 < 3; mass_o2++) {
@@ -988,9 +989,9 @@ void viikate_rocket_step(void)
        *  Constant: '<S85>/Lift directions'
        */
       i = mass_o2 << 2;
-      rtb_ci_idx_2 = viikate_rocket_ConstP.Liftdirections_Value[i] *
+      rtb_ni_idx_2 = viikate_rocket_ConstP.Liftdirections_Value[i] *
         rtb_Liftmagnitude_idx_0;
-      rtb_ci[i] = rtb_ci_idx_2;
+      rtb_ci[i] = rtb_ni_idx_2;
       rtb_Gain2 = viikate_rocket_ConstP.Liftdirections_Value[i + 1] *
         rtb_Liftmagnitude_idx_1;
       rtb_ci[i + 1] = rtb_Gain2;
@@ -1002,7 +1003,7 @@ void viikate_rocket_step(void)
       rtb_ci[i + 3] = rtb_ci_1;
 
       /* MATLAB Function: '<S85>/MATLAB Function4' */
-      rtb_finForces[mass_o2] = ((rtb_Gain2 + rtb_ci_idx_2) + rtb_ci_0) +
+      rtb_finForces[mass_o2] = ((rtb_Gain2 + rtb_ni_idx_2) + rtb_ci_0) +
         rtb_ci_1;
     }
 
@@ -1010,15 +1011,15 @@ void viikate_rocket_step(void)
     rtb_Gain2 = -rp_frontal_area_m2 * rp_cn_alpha * rtb_ixk;
 
     /* Product: '<S84>/Divide' */
-    rtb_ci_idx_2 = 1.0 / rtb_jxi_n;
-    rtb_Liftmagnitude_idx_0 = rtb_ci_idx_2 * rtb_hold_force[1];
-    rtb_ci_0 = rtb_ci_idx_2 * rtb_hold_force[2];
+    rtb_ni_idx_2 = 1.0 / rtb_jxi_n;
+    rtb_Liftmagnitude_idx_0 = rtb_ni_idx_2 * rtb_hold_force[1];
+    rtb_ci_0 = rtb_ni_idx_2 * rtb_hold_force[2];
 
     /* Trigonometry: '<S84>/Atan' incorporates:
      *  Constant: '<S84>/Constant2'
      *  Product: '<S84>/Divide'
      */
-    rtb_ci_idx_2 = atan(rtb_ci_idx_2 * 0.0);
+    rtb_ni_idx_2 = atan(rtb_ni_idx_2 * 0.0);
     rtb_Liftmagnitude_idx_0 = atan(rtb_Liftmagnitude_idx_0);
     rtb_ci_0 = atan(rtb_ci_0);
 
@@ -1029,7 +1030,7 @@ void viikate_rocket_step(void)
      *  Gain: '<S88>/Gain9'
      *  Sum: '<S88>/Add1'
      */
-    rtb_Liftmagnitude_idx_1 = (((rtb_ci_idx_2 * rtb_ci_idx_2 +
+    rtb_Liftmagnitude_idx_1 = (((rtb_ni_idx_2 * rtb_ni_idx_2 +
       rtb_Liftmagnitude_idx_0 * rtb_Liftmagnitude_idx_0) + rtb_ci_0 * rtb_ci_0) *
       (0.15 * rp_cn_alpha * rp_cn_alpha) + rp_cd0) * (-rp_frontal_area_m2 *
       rtb_ixk);
@@ -1042,7 +1043,7 @@ void viikate_rocket_step(void)
      *  Trigonometry: '<S84>/Atan'
      */
     rtb_Product2_ih[0] = rtb_jxi_n / rtb_V * rtb_Liftmagnitude_idx_1 + rtb_Gain2
-      * rtb_ci_idx_2;
+      * rtb_ni_idx_2;
     rtb_Product2_ih[1] = rtb_Product2_ih[1] / rtb_V * rtb_Liftmagnitude_idx_1 +
       rtb_Gain2 * rtb_Liftmagnitude_idx_0;
     rtb_Product2_ih[2] = rtb_Product2_ih[2] / rtb_V * rtb_Liftmagnitude_idx_1 +
@@ -1092,8 +1093,8 @@ void viikate_rocket_step(void)
      *  Sum: '<S4>/Add2'
      *  Sum: '<S74>/Sum'
      */
-    rtb_hold_force[0] = ((((((rtb_ci_idx_0 * rtb_ci_idx_0 + rtb_ni_idx_1 *
-      rtb_ni_idx_1) + rtb_ci_idx_1 * rtb_ci_idx_1) + Integrator_CSTATE *
+    rtb_hold_force[0] = ((((((rtb_ci_idx_0 * rtb_ci_idx_0 + rtb_Selector2_idx_6 *
+      rtb_Selector2_idx_6) + rtb_ci_idx_1 * rtb_ci_idx_1) + Integrator_CSTATE *
       Integrator_CSTATE) * -0.5 * rtb_kxj + (rtb_finForces[0] + rtb_Product2_ih
       [0])) + rtb_ixj) + rtb_ixk_f) * viikate_rocket_DW.released;
     rtb_hold_force[1] = ((((rtb_finForces[1] + rtb_Product2_ih[1]) + 0.0) +
@@ -1217,12 +1218,12 @@ void viikate_rocket_step(void)
     /* Product: '<S65>/Product3' incorporates:
      *  Product: '<S61>/Product3'
      */
-    rtb_ci_idx_0 = rtb_ixj * rtb_ixj;
+    rtb_ni_idx_2 = rtb_ixj * rtb_ixj;
 
     /* Product: '<S65>/Product2' incorporates:
      *  Product: '<S61>/Product2'
      */
-    rtb_ci_idx_2 = rtb_ixk_f * rtb_ixk_f;
+    rtb_ci_idx_0 = rtb_ixk_f * rtb_ixk_f;
 
     /* Product: '<S65>/Product1' incorporates:
      *  Product: '<S61>/Product1'
@@ -1241,24 +1242,23 @@ void viikate_rocket_step(void)
      *  Product: '<S65>/Product3'
      *  Sum: '<S69>/Sum'
      */
-    Integrator_CSTATE = rtb_ci_idx_0 - rtb_ci_idx_2;
+    Integrator_CSTATE = rtb_ni_idx_2 - rtb_ci_idx_0;
 
     /* Gain: '<S63>/Gain' incorporates:
      *  Product: '<S63>/Product1'
      *  Product: '<S63>/Product2'
      *  Sum: '<S63>/Sum'
      */
-    rtb_Selector2[6] = (rtb_ixk_f * rtb_kxj - rtb_ixj * rtb_jxi_n) * 2.0;
+    rtb_Selector2_idx_6 = (rtb_ixk_f * rtb_kxj - rtb_ixj * rtb_jxi_n) * 2.0;
 
     /* If: '<S32>/If' incorporates:
      *  Gain: '<S36>/Gain1'
      *  Reshape: '<S70>/Reshape (9) to [3x3] column-major'
-     *  Selector: '<S36>/Selector1'
      */
     rtPrevAction = viikate_rocket_DW.If_ActiveSubsystem;
     if (rtsiIsModeUpdateTimeStep(&viikate_rocket_M->solverInfo)) {
-      rtAction = (int8_t)(!(-rtb_Selector2[6] >= 1.0) && !(-rtb_Selector2[6] <=
-        -1.0));
+      rtAction = (int8_t)(!(-rtb_Selector2_idx_6 >= 1.0) &&
+                          !(-rtb_Selector2_idx_6 <= -1.0));
       viikate_rocket_DW.If_ActiveSubsystem = rtAction;
     } else {
       rtAction = viikate_rocket_DW.If_ActiveSubsystem;
@@ -1291,13 +1291,12 @@ void viikate_rocket_step(void)
       /* If: '<S42>/If' incorporates:
        *  Gain: '<S36>/Gain1'
        *  Reshape: '<S70>/Reshape (9) to [3x3] column-major'
-       *  Selector: '<S36>/Selector1'
        */
       rtPrevAction = viikate_rocket_DW.If_ActiveSubsystem_o;
       if (rtsiIsModeUpdateTimeStep(&viikate_rocket_M->solverInfo)) {
-        if (-rtb_Selector2[6] > 1.0) {
+        if (-rtb_Selector2_idx_6 > 1.0) {
           rtAction = 0;
-        } else if (-rtb_Selector2[6] < -1.0) {
+        } else if (-rtb_Selector2_idx_6 < -1.0) {
           rtAction = 1;
         } else {
           rtAction = 2;
@@ -1351,10 +1350,9 @@ void viikate_rocket_step(void)
         /* Merge: '<S42>/Merge' incorporates:
          *  Gain: '<S36>/Gain1'
          *  Reshape: '<S70>/Reshape (9) to [3x3] column-major'
-         *  Selector: '<S36>/Selector1'
          *  SignalConversion generated from: '<S45>/In'
          */
-        viikate_rocket_DW.Merge_k = -rtb_Selector2[6];
+        viikate_rocket_DW.Merge_k = -rtb_Selector2_idx_6;
 
         /* End of Outputs for SubSystem: '<S42>/If Action Subsystem2' */
         break;
@@ -1366,14 +1364,14 @@ void viikate_rocket_step(void)
        *  Merge: '<S32>/Merge'
        */
       if (viikate_rocket_DW.Merge_k > 1.0) {
-        rtb_ci_idx_2 = 1.0;
+        rtb_ni_idx_2 = 1.0;
       } else if (viikate_rocket_DW.Merge_k < -1.0) {
-        rtb_ci_idx_2 = -1.0;
+        rtb_ni_idx_2 = -1.0;
       } else {
-        rtb_ci_idx_2 = viikate_rocket_DW.Merge_k;
+        rtb_ni_idx_2 = viikate_rocket_DW.Merge_k;
       }
 
-      viikate_rocket_DW.Merge[1] = asin(rtb_ci_idx_2);
+      viikate_rocket_DW.Merge[1] = asin(rtb_ni_idx_2);
 
       /* End of Fcn: '<S35>/Fcn2' */
 
@@ -1396,19 +1394,18 @@ void viikate_rocket_step(void)
        *  Sum: '<S62>/Sum'
        */
       viikate_rocket_DW.Merge[0] = rt_atan2d_snf((rtb_kxj * rtb_ixj + rtb_ixk_f *
-        rtb_jxi_n) * 2.0, ((rtb_ci_idx_0 + rtb_ci_idx_2) -
+        rtb_jxi_n) * 2.0, ((rtb_ni_idx_2 + rtb_ci_idx_0) -
                            rtb_VectorConcatenate_o_tmp) - rtb_Sum_k_0);
 
       /* If: '<S38>/If' incorporates:
        *  Gain: '<S36>/Gain1'
        *  Reshape: '<S70>/Reshape (9) to [3x3] column-major'
-       *  Selector: '<S36>/Selector1'
        */
       rtPrevAction = viikate_rocket_DW.If_ActiveSubsystem_d;
       if (rtsiIsModeUpdateTimeStep(&viikate_rocket_M->solverInfo)) {
-        if (-rtb_Selector2[6] > 1.0) {
+        if (-rtb_Selector2_idx_6 > 1.0) {
           rtAction = 0;
-        } else if (-rtb_Selector2[6] < -1.0) {
+        } else if (-rtb_Selector2_idx_6 < -1.0) {
           rtAction = 1;
         } else {
           rtAction = 2;
@@ -1462,10 +1459,9 @@ void viikate_rocket_step(void)
         /* Merge: '<S38>/Merge' incorporates:
          *  Gain: '<S36>/Gain1'
          *  Reshape: '<S70>/Reshape (9) to [3x3] column-major'
-         *  Selector: '<S36>/Selector1'
          *  SignalConversion generated from: '<S41>/In'
          */
-        viikate_rocket_DW.Merge_o = -rtb_Selector2[6];
+        viikate_rocket_DW.Merge_o = -rtb_Selector2_idx_6;
 
         /* End of Outputs for SubSystem: '<S38>/If Action Subsystem2' */
         break;
@@ -1477,14 +1473,14 @@ void viikate_rocket_step(void)
        *  Merge: '<S32>/Merge'
        */
       if (viikate_rocket_DW.Merge_o > 1.0) {
-        rtb_ci_idx_2 = 1.0;
+        rtb_ni_idx_2 = 1.0;
       } else if (viikate_rocket_DW.Merge_o < -1.0) {
-        rtb_ci_idx_2 = -1.0;
+        rtb_ni_idx_2 = -1.0;
       } else {
-        rtb_ci_idx_2 = viikate_rocket_DW.Merge_o;
+        rtb_ni_idx_2 = viikate_rocket_DW.Merge_o;
       }
 
-      viikate_rocket_DW.Merge[1] = asin(rtb_ci_idx_2);
+      viikate_rocket_DW.Merge[1] = asin(rtb_ni_idx_2);
 
       /* End of Fcn: '<S34>/Fcn2' */
 
@@ -1600,79 +1596,17 @@ void viikate_rocket_step(void)
     /* PreLookup: '<S79>/PreLook-Up Index Search' incorporates:
      *  Integrator: '<S9>/mass  '
      */
-    rtb_PreLookUpIndexSearch_o1 = plook_s32dd_bincp(viikate_rocket_X.mass_CSTATE,
-      rtb_TmpSignalConversionAtPreLoo, 1U, &rtb_ixj,
-      &viikate_rocket_DW.PreLookUpIndexSearch_DWORK1);
-
-    /* LookupNDDirect: '<S81>/[0]' incorporates:
-     *  PreLookup: '<S79>/PreLook-Up Index Search'
-     *
-     * About '<S81>/[0]':
-     *  3-dimensional Direct Look-Up returning a 2-D Matrix,
-     *  which is contiguous for column-major array
-     *     Remove protection against out-of-range input in generated code: 'off'
-     *   */
-    if (rtb_PreLookUpIndexSearch_o1 > 1) {
-      i = 1;
-    } else if (rtb_PreLookUpIndexSearch_o1 < 0) {
-      i = 0;
-    } else {
-      i = rtb_PreLookUpIndexSearch_o1;
-    }
-
-    tableOffset = i * 9;
-
-    /* Sum: '<S81>/Sum' incorporates:
-     *  Constant: '<S81>/offset for upper index 1'
-     */
-    tmp_1 = rtb_PreLookUpIndexSearch_o1 + INT64_C(1);
-    if (rtb_PreLookUpIndexSearch_o1 + INT64_C(1) > INT64_C(2147483647)) {
-      tmp_1 = INT64_C(2147483647);
-    }
-
-    /* LookupNDDirect: '<S81>/[1]' incorporates:
-     *  Sum: '<S81>/Sum'
-     *
-     * About '<S81>/[1]':
-     *  3-dimensional Direct Look-Up returning a 2-D Matrix,
-     *  which is contiguous for column-major array
-     *     Remove protection against out-of-range input in generated code: 'off'
-     *   */
-    if ((int32_t)tmp_1 > 1) {
-      i = 1;
-    } else if ((int32_t)tmp_1 < 0) {
-      i = 0;
-    } else {
-      i = (int32_t)tmp_1;
-    }
+    plook_s32dd_bincp(viikate_rocket_X.mass_CSTATE,
+                      rtb_TmpSignalConversionAtPreLoo, 1U, &rtb_ixj,
+                      &viikate_rocket_DW.PreLookUpIndexSearch_DWORK1);
 
     /* Gain: '<Root>/mass_rate' */
     viikate_rocket_DW.mass_rate = -rp_mass_fuel_kg / rp_burn_time_s * rtb_jxi;
 
-    /* LookupNDDirect: '<S81>/[0]'
-     *
-     * About '<S81>/[0]':
-     *  3-dimensional Direct Look-Up returning a 2-D Matrix,
-     *  which is contiguous for column-major array
-     *     Remove protection against out-of-range input in generated code: 'off'
-     *   */
-    memcpy(&rtb_VectorConcatenate_b[0],
-           &viikate_rocket_ConstP.pooled7[tableOffset], 9U * sizeof(double));
-
-    /* LookupNDDirect: '<S81>/[1]'
-     *
-     * About '<S81>/[1]':
-     *  3-dimensional Direct Look-Up returning a 2-D Matrix,
-     *  which is contiguous for column-major array
-     *     Remove protection against out-of-range input in generated code: 'off'
-     *   */
-    memcpy(&rtb_Selector2[0], &viikate_rocket_ConstP.pooled7[i * 9], 9U * sizeof
-           (double));
-
     /* Product: '<S79>/Product' incorporates:
      *  Constant: '<S79>/slope'
      */
-    rtb_ci_idx_2 = rp_mass_full_kg - (rp_mass_full_kg - rp_mass_fuel_kg);
+    rtb_ni_idx_2 = rp_mass_full_kg - (rp_mass_full_kg - rp_mass_fuel_kg);
 
     /* Product: '<S75>/Product' incorporates:
      *  Reshape: '<S76>/Reshape1'
@@ -1681,30 +1615,44 @@ void viikate_rocket_step(void)
     rtb_q0q1q2q3_idx_1 = 0.0;
     rtb_q0q1q2q3_idx_2 = 0.0;
     for (i = 0; i < 3; i++) {
+      /* Sum: '<S81>/Sum3' incorporates:
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
+       *  Product: '<S81>/1-lambda_x'
+       *  Product: '<S81>/lambda_x.'
+       */
+      rtb_q0q1q2q3_idx_3 = rp_inertia_empty_kgm2[3 * i];
+      rtb_jxi = rp_inertia_full_kgm2[3 * i];
+
       /* Concatenate: '<S9>/Matrix Concatenation' incorporates:
        *  Constant: '<S79>/slope'
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
        *  Fcn: '<S81>/Fcn'
        *  Product: '<S79>/Product'
        *  Product: '<S81>/1-lambda_x'
        *  Product: '<S81>/lambda_x.'
        *  Sum: '<S81>/Sum3'
        */
-      rtb_MatrixConcatenation[6 * i] = rtb_VectorConcatenate_b[3 * i] * (1.0 -
-        rtb_ixj) + rtb_Selector2[3 * i] * rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 3] = (rp_inertia_full_kgm2[3 * i] -
-        rp_inertia_empty_kgm2[3 * i]) / rtb_ci_idx_2 *
-        viikate_rocket_DW.mass_rate;
+      rtb_MatrixConcatenation[6 * i] = (1.0 - rtb_ixj) * rtb_q0q1q2q3_idx_3 +
+        rtb_jxi * rtb_ixj;
+      rtb_MatrixConcatenation[6 * i + 3] = (rtb_jxi - rtb_q0q1q2q3_idx_3) /
+        rtb_ni_idx_2 * viikate_rocket_DW.mass_rate;
 
       /* Sum: '<S81>/Sum3' incorporates:
-       *  Constant: '<S79>/slope'
-       *  Product: '<S79>/Product'
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
        *  Product: '<S81>/1-lambda_x'
        *  Product: '<S81>/lambda_x.'
        */
-      tableOffset = 3 * i + 1;
+      rp_inertia_empty_kgm2_tmp = 3 * i + 1;
+      rtb_q0q1q2q3_idx_3 = rp_inertia_empty_kgm2[rp_inertia_empty_kgm2_tmp];
+      rtb_jxi = rp_inertia_full_kgm2[rp_inertia_empty_kgm2_tmp];
 
       /* Concatenate: '<S9>/Matrix Concatenation' incorporates:
        *  Constant: '<S79>/slope'
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
        *  Fcn: '<S81>/Fcn'
        *  Product: '<S75>/Product'
        *  Product: '<S79>/Product'
@@ -1713,39 +1661,39 @@ void viikate_rocket_step(void)
        *  Selector: '<S8>/Selector'
        *  Sum: '<S81>/Sum3'
        */
-      rtb_PreLookUpIndexSearch_o1 = 6 * i + 1;
-      rtb_MatrixConcatenation[rtb_PreLookUpIndexSearch_o1] = (1.0 - rtb_ixj) *
-        rtb_VectorConcatenate_b[tableOffset] + rtb_Selector2[tableOffset] *
-        rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 4] = (rp_inertia_full_kgm2[tableOffset] -
-        rp_inertia_empty_kgm2[tableOffset]) / rtb_ci_idx_2 *
-        viikate_rocket_DW.mass_rate;
-
-      /* Sum: '<S81>/Sum3' incorporates:
-       *  Constant: '<S79>/slope'
-       *  Product: '<S79>/Product'
-       *  Product: '<S81>/1-lambda_x'
-       *  Product: '<S81>/lambda_x.'
-       */
-      tableOffset = 3 * i + 2;
-
-      /* Concatenate: '<S9>/Matrix Concatenation' incorporates:
-       *  Constant: '<S79>/slope'
-       *  Fcn: '<S81>/Fcn'
-       *  Product: '<S75>/Product'
-       *  Product: '<S79>/Product'
-       *  Product: '<S81>/1-lambda_x'
-       *  Product: '<S81>/lambda_x.'
-       *  Selector: '<S8>/Selector'
-       *  Sum: '<S81>/Sum3'
-       */
-      rtb_MatrixConcatenation_tmp = 6 * i + 2;
+      rtb_MatrixConcatenation_tmp = 6 * i + 1;
       rtb_MatrixConcatenation[rtb_MatrixConcatenation_tmp] = (1.0 - rtb_ixj) *
-        rtb_VectorConcatenate_b[tableOffset] + rtb_Selector2[tableOffset] *
-        rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 5] = (rp_inertia_full_kgm2[tableOffset] -
-        rp_inertia_empty_kgm2[tableOffset]) / rtb_ci_idx_2 *
-        viikate_rocket_DW.mass_rate;
+        rtb_q0q1q2q3_idx_3 + rtb_jxi * rtb_ixj;
+      rtb_MatrixConcatenation[6 * i + 4] = (rtb_jxi - rtb_q0q1q2q3_idx_3) /
+        rtb_ni_idx_2 * viikate_rocket_DW.mass_rate;
+
+      /* Sum: '<S81>/Sum3' incorporates:
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
+       *  Product: '<S81>/1-lambda_x'
+       *  Product: '<S81>/lambda_x.'
+       */
+      rp_inertia_empty_kgm2_tmp = 3 * i + 2;
+      rtb_q0q1q2q3_idx_3 = rp_inertia_empty_kgm2[rp_inertia_empty_kgm2_tmp];
+      rtb_jxi = rp_inertia_full_kgm2[rp_inertia_empty_kgm2_tmp];
+
+      /* Concatenate: '<S9>/Matrix Concatenation' incorporates:
+       *  Constant: '<S79>/slope'
+       *  Constant: '<S81>/[0]'
+       *  Constant: '<S81>/[1]'
+       *  Fcn: '<S81>/Fcn'
+       *  Product: '<S75>/Product'
+       *  Product: '<S79>/Product'
+       *  Product: '<S81>/1-lambda_x'
+       *  Product: '<S81>/lambda_x.'
+       *  Selector: '<S8>/Selector'
+       *  Sum: '<S81>/Sum3'
+       */
+      rp_inertia_empty_kgm2_tmp = 6 * i + 2;
+      rtb_MatrixConcatenation[rp_inertia_empty_kgm2_tmp] = (1.0 - rtb_ixj) *
+        rtb_q0q1q2q3_idx_3 + rtb_jxi * rtb_ixj;
+      rtb_MatrixConcatenation[6 * i + 5] = (rtb_jxi - rtb_q0q1q2q3_idx_3) /
+        rtb_ni_idx_2 * viikate_rocket_DW.mass_rate;
 
       /* Product: '<S75>/Product' incorporates:
        *  Concatenate: '<S9>/Matrix Concatenation'
@@ -1755,10 +1703,10 @@ void viikate_rocket_step(void)
        */
       rtb_q0q1q2q3_idx_3 = rtb_Sum_fh[i];
       rtb_q0q1q2q3_idx_0 += rtb_MatrixConcatenation[6 * i] * rtb_q0q1q2q3_idx_3;
-      rtb_q0q1q2q3_idx_1 += rtb_MatrixConcatenation[rtb_PreLookUpIndexSearch_o1]
+      rtb_q0q1q2q3_idx_1 += rtb_MatrixConcatenation[rtb_MatrixConcatenation_tmp]
         * rtb_q0q1q2q3_idx_3;
-      rtb_q0q1q2q3_idx_2 += rtb_MatrixConcatenation[rtb_MatrixConcatenation_tmp]
-        * rtb_q0q1q2q3_idx_3;
+      rtb_q0q1q2q3_idx_2 += rtb_MatrixConcatenation[rp_inertia_empty_kgm2_tmp] *
+        rtb_q0q1q2q3_idx_3;
     }
 
     /* MATLAB Function: '<S85>/MATLAB Function' incorporates:
@@ -1770,13 +1718,13 @@ void viikate_rocket_step(void)
     for (i = 0; i < 4; i++) {
       rtb_jxi_n = rp_fin_positions_m[i + 4];
       Saturation = rp_fin_positions_m[i + 8];
-      rtb_ci_idx_2 = rtb_ci[i + 8];
+      rtb_ni_idx_2 = rtb_ci[i + 8];
       rtb_Gain2 = rtb_ci[i + 4];
       rtb_ixj = rp_fin_positions_m[i];
       rtb_ci_0 = rtb_ci[i];
       rtb_ixk_f += rtb_ixj * rtb_Gain2 - rtb_ci_0 * rtb_jxi_n;
-      rtb_q0q1q2q3_idx_3 += rtb_jxi_n * rtb_ci_idx_2 - rtb_Gain2 * Saturation;
-      rtb_jxi += rtb_ci_0 * Saturation - rtb_ixj * rtb_ci_idx_2;
+      rtb_q0q1q2q3_idx_3 += rtb_jxi_n * rtb_ni_idx_2 - rtb_Gain2 * Saturation;
+      rtb_jxi += rtb_ci_0 * Saturation - rtb_ixj * rtb_ni_idx_2;
     }
 
     rtb_M[2] = rtb_ixk_f;
@@ -1805,13 +1753,13 @@ void viikate_rocket_step(void)
      *  Gain: '<S87>/Gain7'
      *  Product: '<S87>/Product2'
      */
-    rtb_ci_idx_2 = 1.0 / (2.0 * rtb_V);
+    rtb_ni_idx_2 = 1.0 / (2.0 * rtb_V);
     tmp_0[0] = rp_roll_ref_length_m * rp_roll_ref_length_m * rp_frontal_area_m2 *
-      (rp_clp * rtb_Sum_fh[0]) * rtb_ixk * rtb_ci_idx_2;
+      (rp_clp * rtb_Sum_fh[0]) * rtb_ixk * rtb_ni_idx_2;
     tmp_0[1] = rp_length_m * rp_length_m * rp_frontal_area_m2 * (rp_cmq *
-      rtb_Sum_fh[1]) * rtb_ixk * rtb_ci_idx_2;
+      rtb_Sum_fh[1]) * rtb_ixk * rtb_ni_idx_2;
     tmp_0[2] = rp_length_m * rp_length_m * rp_frontal_area_m2 * (rp_cnr *
-      rtb_Sum_fh[2]) * rtb_ixk * rtb_ci_idx_2;
+      rtb_Sum_fh[2]) * rtb_ixk * rtb_ni_idx_2;
 
     /* Product: '<S76>/Product' incorporates:
      *  Concatenate: '<S9>/Matrix Concatenation'
@@ -1822,10 +1770,10 @@ void viikate_rocket_step(void)
     rtb_jxi = 0.0;
     rtb_V = 0.0;
     for (i = 0; i < 3; i++) {
-      rtb_ci_idx_2 = rtb_Sum_fh[i];
-      rtb_q0q1q2q3_idx_3 += rtb_MatrixConcatenation[6 * i + 3] * rtb_ci_idx_2;
-      rtb_jxi += rtb_MatrixConcatenation[6 * i + 4] * rtb_ci_idx_2;
-      rtb_V += rtb_MatrixConcatenation[6 * i + 5] * rtb_ci_idx_2;
+      rtb_ni_idx_2 = rtb_Sum_fh[i];
+      rtb_q0q1q2q3_idx_3 += rtb_MatrixConcatenation[6 * i + 3] * rtb_ni_idx_2;
+      rtb_jxi += rtb_MatrixConcatenation[6 * i + 4] * rtb_ni_idx_2;
+      rtb_V += rtb_MatrixConcatenation[6 * i + 5] * rtb_ni_idx_2;
     }
 
     rtb_MatrixConcatenation_0[2] = rtb_V;
@@ -1913,13 +1861,13 @@ void viikate_rocket_step(void)
       /* RateLimiter: '<Root>/servo_rate_limit' incorporates:
        *  Inport: '<Root>/fin_cmd_rad'
        */
-      rtb_ci_idx_2 = rp_servo_rate_limit_radps * viikate_rocket_period;
+      rtb_ni_idx_2 = rp_servo_rate_limit_radps * viikate_rocket_period;
       rtb_q0q1q2q3_idx_3 = rp_servo_rate_limit_radps * viikate_rocket_period;
       rtb_q0q1q2q3_idx_0 = -rp_servo_rate_limit_radps * viikate_rocket_period;
       rtb_q0q1q2q3_idx_1 = -rp_servo_rate_limit_radps * viikate_rocket_period;
       rtb_q0q1q2q3_idx_2 = viikate_rocket_U.fin_cmd_rad[0] -
         viikate_rocket_DW.PrevY[0];
-      if (rtb_q0q1q2q3_idx_2 > rtb_ci_idx_2) {
+      if (rtb_q0q1q2q3_idx_2 > rtb_ni_idx_2) {
         /* RateLimiter: '<Root>/servo_rate_limit' */
         rtb_q0q1q2q3_idx_2 = viikate_rocket_DW.PrevY[0] + rtb_q0q1q2q3_idx_3;
       } else if (rtb_q0q1q2q3_idx_2 < rtb_q0q1q2q3_idx_0) {
@@ -1939,7 +1887,7 @@ void viikate_rocket_step(void)
       viikate_rocket_DW.PrevY[0] = rtb_q0q1q2q3_idx_2;
       rtb_q0q1q2q3_idx_2 = viikate_rocket_U.fin_cmd_rad[1] -
         viikate_rocket_DW.PrevY[1];
-      if (rtb_q0q1q2q3_idx_2 > rtb_ci_idx_2) {
+      if (rtb_q0q1q2q3_idx_2 > rtb_ni_idx_2) {
         /* RateLimiter: '<Root>/servo_rate_limit' */
         rtb_q0q1q2q3_idx_2 = viikate_rocket_DW.PrevY[1] + rtb_q0q1q2q3_idx_3;
       } else if (rtb_q0q1q2q3_idx_2 < rtb_q0q1q2q3_idx_0) {
@@ -1959,7 +1907,7 @@ void viikate_rocket_step(void)
       viikate_rocket_DW.PrevY[1] = rtb_q0q1q2q3_idx_2;
       rtb_q0q1q2q3_idx_2 = viikate_rocket_U.fin_cmd_rad[2] -
         viikate_rocket_DW.PrevY[2];
-      if (rtb_q0q1q2q3_idx_2 > rtb_ci_idx_2) {
+      if (rtb_q0q1q2q3_idx_2 > rtb_ni_idx_2) {
         /* RateLimiter: '<Root>/servo_rate_limit' */
         rtb_q0q1q2q3_idx_2 = viikate_rocket_DW.PrevY[2] + rtb_q0q1q2q3_idx_3;
       } else if (rtb_q0q1q2q3_idx_2 < rtb_q0q1q2q3_idx_0) {
@@ -1979,7 +1927,7 @@ void viikate_rocket_step(void)
       viikate_rocket_DW.PrevY[2] = rtb_q0q1q2q3_idx_2;
       rtb_q0q1q2q3_idx_2 = viikate_rocket_U.fin_cmd_rad[3] -
         viikate_rocket_DW.PrevY[3];
-      if (rtb_q0q1q2q3_idx_2 > rtb_ci_idx_2) {
+      if (rtb_q0q1q2q3_idx_2 > rtb_ni_idx_2) {
         /* RateLimiter: '<Root>/servo_rate_limit' */
         rtb_q0q1q2q3_idx_2 = viikate_rocket_DW.PrevY[3] + rtb_q0q1q2q3_idx_3;
       } else if (rtb_q0q1q2q3_idx_2 < rtb_q0q1q2q3_idx_0) {
@@ -1998,19 +1946,19 @@ void viikate_rocket_step(void)
     }
 
     /* Gain: '<Root>/servo_gain' */
-    rtb_ci_idx_2 = 1.0 / rp_servo_tau_s;
+    rtb_ni_idx_2 = 1.0 / rp_servo_tau_s;
 
     /* Gain: '<Root>/servo_gain' incorporates:
      *  Sum: '<Root>/servo_error'
      */
     viikate_rocket_DW.servo_gain[0] = (viikate_rocket_DW.servo_rate_limit[0] -
-      servo_lag_idx_0) * rtb_ci_idx_2;
+      servo_lag_idx_0) * rtb_ni_idx_2;
     viikate_rocket_DW.servo_gain[1] = (viikate_rocket_DW.servo_rate_limit[1] -
-      servo_lag_idx_1) * rtb_ci_idx_2;
+      servo_lag_idx_1) * rtb_ni_idx_2;
     viikate_rocket_DW.servo_gain[2] = (viikate_rocket_DW.servo_rate_limit[2] -
-      servo_lag_idx_2) * rtb_ci_idx_2;
+      servo_lag_idx_2) * rtb_ni_idx_2;
     viikate_rocket_DW.servo_gain[3] = (viikate_rocket_DW.servo_rate_limit[3] -
-      servo_lag_idx_3) * rtb_ci_idx_2;
+      servo_lag_idx_3) * rtb_ni_idx_2;
     if (rtmIsMajorTimeStep(viikate_rocket_M) &&
         viikate_rocket_M->Timing.TaskCounters.TID[2] == 0) {
       /* RandomNumber: '<S6>/Random Number1' */

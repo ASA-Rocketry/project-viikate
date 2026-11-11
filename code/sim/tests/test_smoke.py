@@ -33,7 +33,7 @@ class SmokeTest(unittest.TestCase):
     def test_runs_to_stop_time(self):
         result = sil.run(EXE, 3)
         self.assertEqual(result.plant, "toy_roll_plant")
-        self.assertEqual(result.interface_version, 2)
+        self.assertEqual(result.interface_version, 3)
         self.assertIn("IMU initialized", result.log)
         self.assertIn("Barometer initialized", result.log)
         # The tick exactly at --stop_at is not run; allow one log period.
