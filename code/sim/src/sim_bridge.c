@@ -17,8 +17,8 @@
  *   SIM,<values...>
  *
  * The run stops early with:
- *   SIMEND,ground_impact   exit 0: the rocket came back down more than 1 m
- *                          below the pad after being more than 1 m above it
+ *   SIMEND,ground_impact   exit 0: the rocket is more than 1 m below the
+ *                          pad (the plant has no ground once it leaves it)
  *   SIMERR,<reason>        exit 1: a plant output is not finite
  *                          (non_finite_output) or the plant reported an
  *                          error (its message). Nothing is published to the
@@ -45,7 +45,7 @@
 #define SERVO_SIGNS_USAGE "--servo-signs: expected 4 values of +1/-1\n"
 #define RAD2DEG (180.0 / SIM_PI)
 #define DEG2RAD (SIM_PI / 180.0)
-/* Ground impact: more than this above the pad, then more than this below. */
+/* Ground impact: more than this below the pad. */
 #define GROUND_MARGIN_M 1.0
 
 #define SERVO_INFO(n) \
@@ -78,7 +78,6 @@ static viikate_plant_outputs_t plant_out;
 static struct k_timer plant_timer;
 static uint32_t step_count;
 static uint32_t steps_per_log;
-static bool lifted_off;
 
 static void add_cmdline_options(void) {
     static struct args_struct_t options[] = {
@@ -295,12 +294,13 @@ static void check_plant(void) {
     }
 }
 
+/*
+ * The pad hold keeps the rocket exactly at pad level until thrust exceeds
+ * weight, so being below the pad always means it came back down, including
+ * after a hop too low to clear the margin above the pad.
+ */
 static void check_ground_impact(void) {
-    const double down_m = plant_out.truth.position_ned_m[2];
-
-    if (down_m < -GROUND_MARGIN_M) {
-        lifted_off = true;
-    } else if (lifted_off && down_m > GROUND_MARGIN_M) {
+    if (plant_out.truth.position_ned_m[2] > GROUND_MARGIN_M) {
         printk("SIMEND,ground_impact\n");
         posix_exit(0);
     }
