@@ -10,6 +10,11 @@ if(CONFIG_VIIKATE_SIM)
     src/sim_pwm.c
     src/sim_sensors.c
     src/sim_bridge.c
-    plant/toy_roll_plant.c
   )
+
+  if(CONFIG_VIIKATE_SIM_PLANT_TOY)
+    zephyr_library_sources(plant/toy_roll_plant.c)
+  elseif(CONFIG_VIIKATE_SIM_PLANT_ROCKET)
+    message(FATAL_ERROR "Rocket plant sources are not available yet")
+  endif()
 endif()

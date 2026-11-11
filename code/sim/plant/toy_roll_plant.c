@@ -121,8 +121,8 @@ static void fill_outputs(viikate_plant_outputs_t *out) {
     out->air_temperature_c = params.air_temperature_c;
 
     out->truth.t_s = plant.t_s;
+    /* Launch frame: only roll moves on the test stand. */
     out->truth.euler_rad[0] = phi;
-    out->truth.euler_rad[1] = SIM_PI / 2.0;
     out->truth.body_rate_radps[0] = plant.x[STATE_P];
     /* q = q_pitch(90 deg) * q_roll(phi) */
     out->truth.quat_wxyz[0] = c45 * cos(phi / 2.0);
@@ -172,4 +172,8 @@ void viikate_plant_step(
 
     plant.t_s += h;
     fill_outputs(out);
+}
+
+const char *viikate_plant_error(void) {
+    return NULL;
 }
