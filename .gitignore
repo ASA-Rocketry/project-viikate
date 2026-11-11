@@ -50,6 +50,8 @@ __pycache__/
 # -------------------------------------------------------------------
 # Simulink simulation & code-generation cache folders
 slprj/
+# rocket plant build and probe output (simulation/matlab/plant/generate_plant.m)
+simulation/matlab/plant/work/
 # Simulink model cache files
 *.slxc
 # MATLAB & Simulink autosave files
