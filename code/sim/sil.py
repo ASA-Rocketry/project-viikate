@@ -134,6 +134,15 @@ def build_frames_lib():
     )
 
 
+def build_design_lib():
+    """Shared library of the rocket design parser, for tests/test_design.py."""
+    return _host_cc(
+        [ROCKET_DIR / "rocket_design.c"],
+        REPLAY_BUILD_DIR / "librocket_design.so",
+        ["-shared", "-fPIC"],
+    )
+
+
 def build_replay():
     """plant_replay: the rocket plant adapter and generated code stepped
     without Zephyr. Returns the executable."""
