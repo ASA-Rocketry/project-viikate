@@ -30,6 +30,7 @@ REPO_DIR = CODE_DIR.parent
 BUILD_ROOT = REPO_DIR / "build"
 PLANTS = ("toy", "rocket")
 ROCKET_DIR = SIM_DIR / "plant" / "rocket"
+CODEGEN_DIR = REPO_DIR / "simulation" / "plant_codegen"
 REPLAY_BUILD_DIR = BUILD_ROOT / "sil-replay"
 BOARD = "native_sim/native/64"
 RUN_TIMEOUT_S = 300
@@ -127,6 +128,42 @@ def build_frames_lib():
         REPLAY_BUILD_DIR / "librocket_frames.so",
         ["-shared", "-fPIC"],
     )
+
+
+def build_replay():
+    """plant_replay: the rocket plant adapter and generated code stepped
+    without Zephyr. Returns the executable."""
+    generated = sorted(CODEGEN_DIR.glob("*.c"))
+    if not generated:
+        raise SilError(
+            f"generated rocket plant not found in {CODEGEN_DIR}; "
+            "run generate_plant.m"
+        )
+    return _host_cc(
+        [
+            SIM_DIR / "tools" / "plant_replay.c",
+            ROCKET_DIR / "rocket_plant.c",
+            ROCKET_DIR / "rocket_frames.c",
+            *generated,
+        ],
+        REPLAY_BUILD_DIR / "plant_replay",
+        [f"-I{SIM_DIR / 'include'}", f"-I{ROCKET_DIR}", f"-I{CODEGEN_DIR}"],
+    )
+
+
+def run_replay(exe, args):
+    """Run plant_replay and return its CSV rows as dicts of floats."""
+    cmd = [str(exe), *[str(a) for a in args]]
+    proc = subprocess.run(
+        cmd, capture_output=True, text=True, timeout=RUN_TIMEOUT_S
+    )
+    if proc.returncode != 0:
+        raise SilError(
+            f"{' '.join(cmd)} exited with {proc.returncode}\n"
+            f"{proc.stderr[-2000:]}"
+        )
+    reader = csv.DictReader(proc.stdout.splitlines())
+    return [{k: float(v) for k, v in row.items()} for row in reader]
 
 
 def parse_log(text):
@@ -230,6 +267,7 @@ def main(argv=None):
         return 0
 
     os.environ["SIL_EXE_TOY"] = str(build("toy"))
+    os.environ["SIL_REPLAY"] = str(build_replay())
     suite = unittest.defaultTestLoader.discover(
         str(SIM_DIR / "tests"), top_level_dir=str(SIM_DIR)
     )
