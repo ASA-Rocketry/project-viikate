@@ -8,8 +8,9 @@ function generate_plant()
 %                MathWorks support headers it includes (from packNGo)
 %   reference/   a scripted fin-command scenario simulated in Simulink, which
 %                code/sim/tests/test_replay.py replays through the generated C
-%   PROVENANCE   SHA-256 of the inputs; code/sim/tools/check_provenance.py
-%                fails when they change without regenerating
+%   PROVENANCE   SHA-256 of the inputs and of every file above;
+%                code/sim/tools/check_provenance.py fails when an input
+%                changed without regenerating or an output is missing or edited
 %
 % The model is loaded, never saved: saving it changes its hash, so a saved
 % model always needs a regenerate.
@@ -93,11 +94,20 @@ write_output_csv(fullfile(refDir, 'output.csv'), so.yout);
 clear restoreParams
 
 % --- Provenance ---------------------------------------------------------------
+% Inputs first, then every file written here, so a changed model and a
+% missing or hand-edited output are both caught.
+outputs = [dir(fullfile(outDir, '*.c')); dir(fullfile(outDir, '*.h')); ...
+    dir(fullfile(refDir, '*'))];
+outputs = outputs(~[outputs.isdir]);
+relOut = arrayfun(@(f) fullfile('simulation', ...
+    extractAfter(fullfile(f.folder, f.name), [simDir filesep])), outputs, ...
+    'UniformOutput', false);
+listed = [inputs; sort(relOut)];
 fid = fopen(fullfile(outDir, 'PROVENANCE'), 'w');
-for k = 1:numel(inputs)
-    [status, out] = system(sprintf('sha256sum "%s"', fullfile(fileparts(simDir), inputs{k})));
+for k = 1:numel(listed)
+    [status, out] = system(sprintf('sha256sum "%s"', fullfile(fileparts(simDir), listed{k})));
     assert(status == 0, 'sha256sum failed: %s', out);
-    fprintf(fid, 'sha256 %s %s\n', strtok(out), strrep(inputs{k}, filesep, '/'));
+    fprintf(fid, 'sha256 %s %s\n', strtok(out), strrep(listed{k}, filesep, '/'));
 end
 fprintf(fid, 'matlab_release R%s\n', version('-release'));
 fprintf(fid, 'target %s\n', get_param(model, 'SystemTargetFile'));

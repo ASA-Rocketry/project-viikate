@@ -72,5 +72,33 @@ class ProvenanceTest(unittest.TestCase):
         self.assertIn("no sha256", problems[0])
 
 
+class CommittedProvenanceTest(unittest.TestCase):
+    """The PROVENANCE generate_plant.m wrote for simulation/plant_codegen."""
+
+    def test_every_generated_file_is_listed(self):
+        repo = check_provenance.REPO_DIR
+        codegen = repo / "simulation" / "plant_codegen"
+        listed = {
+            line.split()[2]
+            for line in (codegen / "PROVENANCE").read_text().splitlines()
+            if line.startswith("sha256 ")
+        }
+        generated = [
+            p for p in codegen.rglob("*") if p.is_file() and p.name != "PROVENANCE"
+        ]
+        self.assertGreater(len(generated), 10)
+        for path in generated:
+            name = path.relative_to(repo).as_posix()
+            self.assertIn(name, listed)
+
+    def test_committed_plant_is_current(self):
+        self.assertEqual(
+            check_provenance.check(
+                check_provenance.DEFAULT_PROVENANCE, check_provenance.REPO_DIR
+            ),
+            [],
+        )
+
+
 if __name__ == "__main__":
     unittest.main()
