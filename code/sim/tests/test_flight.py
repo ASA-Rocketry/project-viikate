@@ -84,6 +84,14 @@ class FlightTest(unittest.TestCase):
         self.assertEqual(result.end_reason, "ground_impact")
         self.assertLess(result.rows[-1]["t_ms"], 60000)
 
+    def test_low_thrust_hop_ends_at_ground_impact(self):
+        # Thrust peaks just above weight: the rocket hops well under 1 m and
+        # falls back. Without a ground below the pad it would keep falling.
+        result = sil.run(EXE, 20, plant_params={"thrust_scale": 0.15})
+        self.assertEqual(result.end_reason, "ground_impact")
+        self.assertLess(max(-row["pos_d_m"] for row in result.rows), 1.0)
+        self.assertLessEqual(result.rows[-1]["pos_d_m"], 1.0)
+
     def test_short_run_stays_on_pad(self):
         result = sil.run(EXE, 2)
         self.assertIsNone(result.end_reason)
