@@ -1,0 +1,30 @@
+# Test design, not flown by the flight tests: every value of viikate_v1
+# changed by 10-30%, non-zero products of inertia, a motor without a t = 0
+# point and no burn_time_s (so it defaults to the motor's last point).
+# generate_plant.m simulates it in Simulink (reference/perturbed) and
+# code/sim/tests/test_replay.py checks the generated C against that.
+
+name = perturbed
+motor = motors/perturbed.eng
+
+mass_full_kg = 1.6224
+mass_fuel_kg = 0.0756
+inertia_full_kgm2 = 0.003105, 0.20355, 0.20355
+inertia_empty_kgm2 = 0.003105, 0.190325, 0.190325
+length_m = 1.524
+frontal_area_m2 = 0.005304
+cd0 = 0.762
+cn_alpha = 24
+cp_aft_of_cg_m = 0.3806
+cmq = -48
+cnr = -48
+clp = -0.36
+roll_ref_length_m = 0.168
+canard_area_m2 = 0.002025
+canard_cl_alpha = 2.37
+canard_fwd_of_cg_m = 0.42201
+canard_lift_radius_m = 0.071637
+servo_tau_s = 0.06
+servo_rate_limit_dps = 720
+inertia_full_products_kgm2 = 1e-4, -5e-5, 2e-5
+inertia_empty_products_kgm2 = 9e-5, -4e-5, 2e-5
