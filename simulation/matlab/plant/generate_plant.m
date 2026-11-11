@@ -24,7 +24,9 @@ model = 'viikate_rocket';
 inputs = {
     fullfile('simulation', 'matlab', 'plant', [model '.slx'])
     fullfile('simulation', 'matlab', 'plant', 'plant_parameters.m')
-    fullfile('simulation', 'matlab', 'closedModel', 'thrustcurve.mat')
+    fullfile('simulation', 'matlab', 'plant', 'read_rocket_design.m')
+    fullfile('simulation', 'rockets', 'viikate_v1.rocket')
+    fullfile('simulation', 'rockets', 'motors', 'viikate_v1.eng')
 };
 
 addpath(plantDir);
