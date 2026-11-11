@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-#define VIIKATE_PLANT_IF_VERSION 1
+#define VIIKATE_PLANT_IF_VERSION 2
 #define VIIKATE_PLANT_FIN_COUNT 4
 
 typedef struct {
@@ -36,9 +36,13 @@ typedef struct {
     double t_s;
     double position_ned_m[3];
     double velocity_ned_mps[3];
-    /* Attitude, body to NED, scalar first: w, x, y, z. */
+    /* Attitude, body to NED, scalar first: w, x, y, z. Authoritative. */
     double quat_wxyz[4];
-    /* ZYX Euler angles: roll, pitch, yaw. */
+    /*
+     * Roll, pitch, yaw relative to the launch frame, not to NED (which is
+     * singular for a vertical rocket). Roll is rotation about the rocket
+     * axis. All three are zero on the pad.
+     */
     double euler_rad[3];
     double body_rate_radps[3];
     /* Actual deflection after servo dynamics. */
@@ -63,7 +67,8 @@ double viikate_plant_step_size_s(void);
 
 /*
  * Set a scenario parameter by name before viikate_plant_init().
- * Returns 0 on success, -1 if the plant has no such parameter.
+ * Returns 0 on success, -1 if the plant has no such parameter, -2 if the
+ * value is out of range for it.
  */
 int viikate_plant_set_param(const char *name, double value);
 
@@ -75,6 +80,13 @@ void viikate_plant_step(
     const viikate_plant_inputs_t *in,
     viikate_plant_outputs_t *out
 );
+
+/*
+ * NULL while the plant is healthy, otherwise a message saying what went
+ * wrong. Check after viikate_plant_init() and after every step; the outputs
+ * are not valid once this is non-NULL.
+ */
+const char *viikate_plant_error(void);
 
 #ifdef __cplusplus
 }

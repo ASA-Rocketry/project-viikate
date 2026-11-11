@@ -6,9 +6,12 @@ together with the sim module in code/sim, which provides simulated sensors
 and servos driven by a plant model. Linux x86_64 only (use the Dockerfile on
 other hosts).
 
-    python3 code/sim/sil.py build
-    python3 code/sim/sil.py run --stop-at 6 --plant-param kick_roll_rate_radps=2
+    python3 code/sim/sil.py build --plant toy
+    python3 code/sim/sil.py run --plant toy --stop-at 6 \
+        --plant-param kick_roll_rate_radps=2
     python3 code/sim/sil.py test
+
+Each plant gets its own build directory, build/sil-<plant>.
 """
 
 import argparse
@@ -24,7 +27,8 @@ from pathlib import Path
 SIM_DIR = Path(__file__).resolve().parent
 CODE_DIR = SIM_DIR.parent
 REPO_DIR = CODE_DIR.parent
-DEFAULT_BUILD_DIR = REPO_DIR / "build" / "sil"
+BUILD_ROOT = REPO_DIR / "build"
+PLANTS = ("toy", "rocket")
 BOARD = "native_sim/native/64"
 RUN_TIMEOUT_S = 300
 
@@ -54,19 +58,30 @@ class SimResult:
             writer.writerows(self.rows)
 
 
-def exe_path(build_dir=DEFAULT_BUILD_DIR):
-    return Path(build_dir) / "zephyr" / "zephyr.exe"
+def _check_plant(plant):
+    if plant not in PLANTS:
+        raise SilError(f"unknown plant {plant!r}, expected one of {PLANTS}")
 
 
-def build(build_dir=DEFAULT_BUILD_DIR, pristine=False):
-    """Build code/app for native_sim with the sim module. Returns zephyr.exe."""
+def build_dir(plant):
+    _check_plant(plant)
+    return BUILD_ROOT / f"sil-{plant}"
+
+
+def exe_path(plant):
+    return build_dir(plant) / "zephyr" / "zephyr.exe"
+
+
+def build(plant="toy", pristine=False):
+    """Build code/app for native_sim with the sim module and the given
+    plant. Returns the path of zephyr.exe."""
     cmd = [
         "west",
         "build",
         "-b",
         BOARD,
         "-d",
-        str(build_dir),
+        str(build_dir(plant)),
         "-p",
         "always" if pristine else "auto",
         str(CODE_DIR / "app"),
@@ -74,10 +89,11 @@ def build(build_dir=DEFAULT_BUILD_DIR, pristine=False):
         f"-DZEPHYR_EXTRA_MODULES={SIM_DIR}",
         f"-DDTC_OVERLAY_FILE={SIM_DIR / 'native_sim.overlay'}",
         f"-DEXTRA_CONF_FILE={SIM_DIR / 'native_sim.conf'}",
+        f"-DCONFIG_VIIKATE_SIM_PLANT_{plant.upper()}=y",
     ]
     env = dict(os.environ, ZEPHYR_TOOLCHAIN_VARIANT="host")
     subprocess.run(cmd, check=True, env=env)
-    return exe_path(build_dir)
+    return exe_path(plant)
 
 
 def parse_log(text):
@@ -139,13 +155,14 @@ def _signs(text):
 
 def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__.splitlines()[0])
-    parser.add_argument("--build-dir", type=Path, default=DEFAULT_BUILD_DIR)
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_build = sub.add_parser("build", help="build zephyr.exe for native_sim")
+    p_build.add_argument("--plant", choices=PLANTS, default="toy")
     p_build.add_argument("--pristine", action="store_true")
 
     p_run = sub.add_parser("run", help="run one scenario")
+    p_run.add_argument("--plant", choices=PLANTS, default="toy")
     p_run.add_argument("--stop-at", type=float, default=6.0, help="seconds")
     p_run.add_argument(
         "--plant-param", type=_key_value, action="append", default=[]
@@ -159,11 +176,11 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     if args.command == "build":
-        build(args.build_dir, args.pristine)
+        build(args.plant, args.pristine)
         return 0
 
     if args.command == "run":
-        exe = exe_path(args.build_dir) if args.no_build else build(args.build_dir)
+        exe = exe_path(args.plant) if args.no_build else build(args.plant)
         result = run(
             exe, args.stop_at, dict(args.plant_param), args.servo_signs
         )
@@ -175,8 +192,7 @@ def main(argv=None):
                 print(",".join(f"{row[c]:g}" for c in result.columns))
         return 0
 
-    build(args.build_dir)
-    os.environ["SIL_EXE"] = str(exe_path(args.build_dir))
+    os.environ["SIL_EXE_TOY"] = str(build("toy"))
     suite = unittest.defaultTestLoader.discover(
         str(SIM_DIR / "tests"), top_level_dir=str(SIM_DIR)
     )
