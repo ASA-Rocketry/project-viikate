@@ -1,0 +1,1 @@
+ignition_time_s=0.5
