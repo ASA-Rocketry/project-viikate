@@ -1,18 +1,15 @@
-"""Smoke tests: the firmware runs closed-loop against the plant.
+"""Smoke tests: the firmware runs closed-loop against the toy roll plant.
 
-Run with `python3 code/sim/sil.py test` (builds first), or with SIL_EXE set
-to an existing zephyr.exe: `python3 -m unittest discover -s code/sim/tests`.
+Run with `python3 code/sim/sil.py test` (builds first), or with SIL_EXE_TOY
+set to an existing zephyr.exe:
+`python3 -m unittest discover -s code/sim/tests -t code/sim`.
 """
 
 import math
-import os
-import sys
 import unittest
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
-
-import sil  # noqa: E402
+from tests import common
+from tests.common import sil
 
 EXE = None
 KICK_MS = 2500  # toy plant default kick_time_s
@@ -22,7 +19,7 @@ SERVO_LIMIT_DEG = 45.0  # output_limit in code/app/src/guidance/pid.c
 
 def setUpModule():
     global EXE
-    EXE = Path(os.environ["SIL_EXE"]) if "SIL_EXE" in os.environ else sil.build()
+    EXE = common.exe("toy")
 
 
 def max_abs(rows, names):
@@ -36,12 +33,17 @@ class SmokeTest(unittest.TestCase):
     def test_runs_to_stop_time(self):
         result = sil.run(EXE, 3)
         self.assertEqual(result.plant, "toy_roll_plant")
-        self.assertEqual(result.interface_version, 1)
+        self.assertEqual(result.interface_version, 2)
         self.assertIn("IMU initialized", result.log)
         self.assertIn("Barometer initialized", result.log)
         # The tick exactly at --stop_at is not run; allow one log period.
         self.assertGreaterEqual(result.rows[-1]["t_ms"], 3000 - LOG_PERIOD_MS)
         self.assertLessEqual(result.rows[-1]["t_ms"], 3000)
+
+    def test_toy_reports_launch_frame_euler(self):
+        result = sil.run(EXE, 3)
+        self.assertIn("pitch_deg", result.columns)
+        self.assertEqual(max_abs(result.rows, ["pitch_deg", "yaw_deg"]), 0.0)
 
     def test_outputs_are_finite(self):
         result = sil.run(EXE, 6)
