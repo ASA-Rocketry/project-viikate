@@ -25,6 +25,15 @@ def replay():
     return sil.build_replay()
 
 
+def burnout_ms(design_path, ignition_ms):
+    """Burnout time of a design: ignition plus its burn_time_s."""
+    from tests import rocket_design
+
+    return ignition_ms + round(
+        1000 * rocket_design.load(design_path)["burn_time_s"]
+    )
+
+
 def tilt_deg(row):
     """Angle between the rocket axis and vertical, from the NED quaternion."""
     c = 2.0 * (row["q_w"] * row["q_y"] - row["q_x"] * row["q_z"])
