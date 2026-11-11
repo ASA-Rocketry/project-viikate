@@ -46,7 +46,7 @@ function k = keys()
 k = {
     'burn_time_s', 1, 'positive', true
     'mass_full_kg', 1, 'positive', false
-    'mass_fuel_kg', 1, 'non_negative', false
+    'mass_fuel_kg', 1, 'positive', false
     'inertia_full_kgm2', 3, 'any', false
     'inertia_empty_kgm2', 3, 'any', false
     'inertia_full_products_kgm2', 3, 'any', true

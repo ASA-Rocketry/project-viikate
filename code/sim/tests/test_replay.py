@@ -286,15 +286,25 @@ class ReplayTest(unittest.TestCase):
         self.assertIn("mass_fuel_kg must be less than mass_full_kg", proc.stderr)
 
     def test_relative_rocket_path_from_other_cwd(self):
+        # Run from simulation/rockets with a path into test/: the motor
+        # (motors/perturbed.eng) only resolves against the design's own
+        # directory, not against the cwd.
         proc = replay_proc(
-            "--rocket", "perturbed.rocket", "--zero-input", "--duration", 2,
-            cwd=PERTURBED.parent,
+            "--rocket", "test/perturbed.rocket", "--zero-input", "--duration", 2,
+            cwd=rocket_design.ROCKETS_DIR,
         )
         self.assertEqual(proc.returncode, 0, proc.stderr)
         absolute = replay_proc(
             "--rocket", PERTURBED, "--zero-input", "--duration", 2
         )
         self.assertEqual(proc.stdout, absolute.stdout)
+
+    def test_zero_fuel_mass_is_rejected(self):
+        # The 6DOF block divides by the fuel mass; 0 used to fly into a
+        # non-finite output instead of naming the parameter.
+        proc = replay_proc("--zero-input", "--duration", 1, "mass_fuel_kg=0")
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("out of range for mass_fuel_kg", proc.stderr)
 
     def test_old_servo_rate_name_is_gone(self):
         proc = replay_proc(

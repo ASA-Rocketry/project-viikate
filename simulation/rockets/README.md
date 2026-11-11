@@ -46,7 +46,7 @@ an error naming the file and line, and the run stops before it starts.
 | `motor` | | 1 | `.eng` path relative to this file, no `..` |
 | `burn_time_s` | s | 1 | optional, > 0; default the motor's last time. Thrust and fuel flow stop after it. |
 | `mass_full_kg` | kg | 1 | > 0, lift-off mass |
-| `mass_fuel_kg` | kg | 1 | ≥ 0 and < `mass_full_kg` |
+| `mass_fuel_kg` | kg | 1 | > 0 and < `mass_full_kg` |
 | `inertia_full_kgm2` | kg m² | 3 | Ixx, Iyy, Izz about the CG, full |
 | `inertia_empty_kgm2` | kg m² | 3 | the same, empty |
 | `inertia_full_products_kgm2` | kg m² | 3 | optional, Ixy, Ixz, Iyz; default 0 |
