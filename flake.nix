@@ -122,7 +122,12 @@
               };
               clang-tidy = {
                 enable = withTidy;
-                excludes = [ "^simulation/" ];
+                # code/sim/ is built only for native_sim, so it is absent from
+                # the teensy41 compile database this hook reads.
+                excludes = [
+                  "^simulation/"
+                  "^code/sim/"
+                ];
                 entry =
                   "${clang-tidy-zephyr}/bin/clang-tidy-zephyr "
                   + "code/build/compile_commands.json";
