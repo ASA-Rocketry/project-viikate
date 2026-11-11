@@ -29,6 +29,8 @@ CODE_DIR = SIM_DIR.parent
 REPO_DIR = CODE_DIR.parent
 BUILD_ROOT = REPO_DIR / "build"
 PLANTS = ("toy", "rocket")
+ROCKET_DIR = SIM_DIR / "plant" / "rocket"
+REPLAY_BUILD_DIR = BUILD_ROOT / "sil-replay"
 BOARD = "native_sim/native/64"
 RUN_TIMEOUT_S = 300
 
@@ -96,6 +98,35 @@ def build(plant="toy", pristine=False):
     env = dict(os.environ, ZEPHYR_TOOLCHAIN_VARIANT="host")
     subprocess.run(cmd, check=True, env=env)
     return exe_path(plant)
+
+
+def _host_cc(sources, output, extra_args):
+    """Compile with the host C compiler (outside Zephyr)."""
+    output.parent.mkdir(parents=True, exist_ok=True)
+    cmd = [
+        os.environ.get("CC", "cc"),
+        "-std=c11",
+        "-O2",
+        "-Wall",
+        "-Wextra",
+        *extra_args,
+        *[str(s) for s in sources],
+        "-o",
+        str(output),
+        "-lm",
+    ]
+    subprocess.run(cmd, check=True)
+    return output
+
+
+def build_frames_lib():
+    """Shared library of the adapter's frame and atmosphere functions, for
+    tests/test_frames.py."""
+    return _host_cc(
+        [ROCKET_DIR / "rocket_frames.c"],
+        REPLAY_BUILD_DIR / "librocket_frames.so",
+        ["-shared", "-fPIC"],
+    )
 
 
 def parse_log(text):
