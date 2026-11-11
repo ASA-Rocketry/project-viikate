@@ -20,11 +20,27 @@ if(CONFIG_VIIKATE_SIM)
         ${CMAKE_CURRENT_LIST_DIR}/../../simulation/plant_codegen)
     file(GLOB VIIKATE_PLANT_CODEGEN_SOURCES CONFIGURE_DEPENDS
          ${VIIKATE_PLANT_CODEGEN_DIR}/*.c)
-    if(NOT VIIKATE_PLANT_CODEGEN_SOURCES)
+    set(VIIKATE_PLANT_PROVENANCE ${VIIKATE_PLANT_CODEGEN_DIR}/PROVENANCE)
+    if(NOT VIIKATE_PLANT_CODEGEN_SOURCES OR NOT EXISTS ${VIIKATE_PLANT_PROVENANCE})
       message(FATAL_ERROR
         "Generated rocket plant not found in simulation/plant_codegen. "
         "Run generate_plant.m or build with --plant toy.")
     endif()
+    # PROVENANCE lists every generated file; name the first one missing
+    # instead of failing later with compiler or linker errors.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS
+                 ${VIIKATE_PLANT_PROVENANCE})
+    file(STRINGS ${VIIKATE_PLANT_PROVENANCE} VIIKATE_PLANT_OUTPUTS
+         REGEX "^sha256 [0-9a-f]+ simulation/plant_codegen/")
+    foreach(line ${VIIKATE_PLANT_OUTPUTS})
+      string(REGEX REPLACE "^sha256 [0-9a-f]+ simulation/plant_codegen/" ""
+             name "${line}")
+      if(NOT EXISTS ${VIIKATE_PLANT_CODEGEN_DIR}/${name})
+        message(FATAL_ERROR
+          "Generated rocket plant is incomplete: simulation/plant_codegen/"
+          "${name} is missing. Run generate_plant.m or build with --plant toy.")
+      endif()
+    endforeach()
     zephyr_library_include_directories(plant/rocket ${VIIKATE_PLANT_CODEGEN_DIR})
     zephyr_library_sources(
       plant/rocket/rocket_plant.c
