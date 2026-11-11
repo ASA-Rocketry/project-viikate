@@ -9,7 +9,7 @@
  *
  * Model version                  : 5.1
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 01:28:46 2026
+ * C/C++ source code generated on : Wed Nov 11 15:27:43 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -969,7 +969,7 @@ void viikate_rocket_step(void)
      */
     rtb_ixk_f = (double)(rtb_ixk_f < 1.0) * look1_binlxpw(rtb_ixk_f,
       viikate_rocket_ConstP.thrust_curve_bp01Data,
-      viikate_rocket_ConstP.thrust_curve_tableData, 14U) * rtb_jxi *
+      viikate_rocket_ConstP.thrust_curve_tableData, 127U) * rtb_jxi *
       rp_thrust_scale;
     tmp = (rtmIsMajorTimeStep(viikate_rocket_M) &&
            viikate_rocket_M->Timing.TaskCounters.TID[1] == 0);

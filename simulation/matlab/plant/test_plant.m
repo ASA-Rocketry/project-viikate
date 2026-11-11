@@ -110,6 +110,88 @@ tc.verifyLessThanOrEqual(dVel, 0.01);
 tc.verifyLessThanOrEqual(dEul, 0.01);
 end
 
+function testV1MatchesClosedParameters(tc)
+% viikate_v1.rocket and its motor reproduce what closedparameters.m and
+% thrustcurve.mat give closedmodel, so testBackToBack ties v1 to it.
+c = closed_values(tc.TestData.closedDir);
+d = read_rocket_design(v1_path(tc));
+pairs = {
+    'inertia_full', c.If; 'inertia_empty', c.Ie; 'cd0', c.Cd0
+    'frontal_area_m2', c.A; 'canard_area_m2', c.Af; 'cn_alpha', c.CNa
+    'canard_cl_alpha', c.Cla; 'cmq', c.Cmq; 'cnr', c.Cnr; 'clp', c.Clp
+    'length_m', c.L; 'roll_ref_length_m', c.b
+    'fin_positions', c.fin_positions; 'r_cp', c.r_cp
+    'mass_full_kg', c.mf; 'mass_fuel_kg', c.mfuel; 'burn_time_s', c.bt
+    'servo_tau_s', c.tau; 'servo_rate_limit_radps', c.alim
+};
+for k = 1:size(pairs, 1)
+    tc.verifyEqual(d.(pairs{k, 1}), pairs{k, 2}, 'AbsTol', 1e-12, pairs{k, 1});
+end
+s = load(fullfile(tc.TestData.closedDir, 'thrustcurve.mat'));
+f = fieldnames(s);
+curve = s.(f{1});
+t = 0:0.001:0.999;
+ref = interp1(curve(1, :), curve(2, :), t, 'linear', 'extrap');
+got = interp1(d.thrust_t_s, d.thrust_n, t, 'linear');
+tc.verifyEqual(got, ref, 'AbsTol', 1e-9, 'thrust over the burn');
+end
+
+function testReaderRejectsUnknownKey(tc)
+path = design_variant(tc, @(text) [text sprintf('foo = 1\n')]);
+tc.verifyError(@() read_rocket_design(path), 'rocket:design');
+try
+    read_rocket_design(path);
+catch e
+    tc.verifySubstring(e.message, 'unknown key foo');
+end
+end
+
+function testReaderRejectsMissingKey(tc)
+path = design_variant(tc, @(text) regexprep(text, '(?m)^cd0 = .*$', ''));
+try
+    read_rocket_design(path);
+    tc.verifyFail('expected an error');
+catch e
+    tc.verifyEqual(e.identifier, 'rocket:design');
+    tc.verifySubstring(e.message, 'missing key cd0');
+end
+end
+
+function p = v1_path(tc)
+p = fullfile(tc.TestData.here, '..', '..', 'rockets', 'viikate_v1.rocket');
+end
+
+function path = design_variant(tc, edit)
+% v1 edited by edit(text), written next to a copy of its motor file.
+dir = tc.applyFixture(matlab.unittest.fixtures.TemporaryFolderFixture).Folder;
+mkdir(fullfile(dir, 'motors'));
+rockets = fullfile(tc.TestData.here, '..', '..', 'rockets');
+copyfile(fullfile(rockets, 'motors', 'viikate_v1.eng'), fullfile(dir, 'motors'));
+path = fullfile(dir, 'd.rocket');
+fid = fopen(path, 'w');
+fwrite(fid, edit(fileread(v1_path(tc))));
+fclose(fid);
+end
+
+function c = closed_values(closedDir)
+% Variables closedparameters.m defines, without its 'clear *' and sim().
+lines = splitlines(fileread(fullfile(closedDir, 'closedparameters.m')));
+keep = ~startsWith(strtrim(lines), {'clear', 'out = sim'});
+c = eval_lines(strjoin(lines(keep), newline));
+end
+
+function c = eval_lines(code)
+% code is the repo's own frozen closedparameters.m, evaluated the same way
+% load_closedparameters does, but into this function's workspace.
+eval(code);
+c = struct();
+for v = who()'
+    if ~strcmp(v{1}, 'code')
+        c.(v{1}) = eval(v{1});
+    end
+end
+end
+
 function out = sim_plant(stop_s, override)
 % Simulate viikate_rocket with zero fin commands. override is MATLAB code run
 % in the base workspace after plant_parameters, e.g. 'rp_thrust_scale.Value = 0.05;'.
