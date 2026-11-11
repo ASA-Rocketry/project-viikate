@@ -6,10 +6,14 @@ together with the sim module in code/sim, which provides simulated sensors
 and servos driven by a plant model. Linux x86_64 only (use the Dockerfile on
 other hosts).
 
-    python3 code/sim/sil.py build --plant toy
+    python3 code/sim/sil.py build
+    python3 code/sim/sil.py run --stop-at 20 --plant-param thrust_scale=0.9
     python3 code/sim/sil.py run --plant toy --stop-at 6 \
         --plant-param kick_roll_rate_radps=2
     python3 code/sim/sil.py test
+
+The default plant is the rocket generated from Simulink
+(simulation/plant_codegen); --plant toy selects the one-axis roll plant.
 
 Each plant gets its own build directory, build/sil-<plant>.
 """
@@ -77,7 +81,7 @@ def exe_path(plant):
     return build_dir(plant) / "zephyr" / "zephyr.exe"
 
 
-def build(plant="toy", pristine=False):
+def build(plant="rocket", pristine=False):
     """Build code/app for native_sim with the sim module and the given
     plant. Returns the path of zephyr.exe."""
     cmd = [
@@ -232,11 +236,11 @@ def main(argv=None):
     sub = parser.add_subparsers(dest="command", required=True)
 
     p_build = sub.add_parser("build", help="build zephyr.exe for native_sim")
-    p_build.add_argument("--plant", choices=PLANTS, default="toy")
+    p_build.add_argument("--plant", choices=PLANTS, default="rocket")
     p_build.add_argument("--pristine", action="store_true")
 
     p_run = sub.add_parser("run", help="run one scenario")
-    p_run.add_argument("--plant", choices=PLANTS, default="toy")
+    p_run.add_argument("--plant", choices=PLANTS, default="rocket")
     p_run.add_argument("--stop-at", type=float, default=6.0, help="seconds")
     p_run.add_argument(
         "--plant-param", type=_key_value, action="append", default=[]
@@ -245,7 +249,11 @@ def main(argv=None):
     p_run.add_argument("--csv", type=Path, help="write the SIM rows here")
     p_run.add_argument("--no-build", action="store_true")
 
-    sub.add_parser("test", help="build, then run the tests in code/sim/tests")
+    sub.add_parser(
+        "test",
+        help="check plant provenance, build both plants and the replay "
+        "tool, then run the tests in code/sim/tests",
+    )
 
     args = parser.parse_args(argv)
 
@@ -266,7 +274,18 @@ def main(argv=None):
                 print(",".join(f"{row[c]:g}" for c in result.columns))
         return 0
 
+    sys.path.insert(0, str(SIM_DIR / "tools"))
+    import check_provenance
+
+    problems = check_provenance.check(
+        CODEGEN_DIR / "PROVENANCE", REPO_DIR
+    )
+    if problems:
+        for problem in problems:
+            print(problem, file=sys.stderr)
+        return 1
     os.environ["SIL_EXE_TOY"] = str(build("toy"))
+    os.environ["SIL_EXE_ROCKET"] = str(build("rocket"))
     os.environ["SIL_REPLAY"] = str(build_replay())
     suite = unittest.defaultTestLoader.discover(
         str(SIM_DIR / "tests"), top_level_dir=str(SIM_DIR)

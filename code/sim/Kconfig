@@ -12,7 +12,7 @@ if VIIKATE_SIM
 
 choice VIIKATE_SIM_PLANT
 	prompt "Plant model"
-	default VIIKATE_SIM_PLANT_TOY
+	default VIIKATE_SIM_PLANT_ROCKET
 
 config VIIKATE_SIM_PLANT_TOY
 	bool "Toy roll plant"
