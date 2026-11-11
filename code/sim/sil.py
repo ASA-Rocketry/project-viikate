@@ -44,6 +44,8 @@ class SimResult:
     columns: list
     rows: list = field(default_factory=list)
     log: str = ""
+    # Reason from a SIMEND line if the run stopped early, else None.
+    end_reason: str = None
 
     def column(self, name):
         return [row[name] for row in self.rows]
@@ -99,7 +101,11 @@ def build(plant="toy", pristine=False):
 def parse_log(text):
     header = None
     rows = []
+    end_reason = None
     for line in text.splitlines():
+        if line.startswith("SIMEND,"):
+            end_reason = line.split(",", 1)[1].strip()
+            continue
         if line.startswith("SIMHDR,"):
             fields = line.split(",")
             header = (fields[1], int(fields[2]), fields[3:])
@@ -112,7 +118,7 @@ def parse_log(text):
             rows.append(dict(zip(header[2], values)))
     if header is None:
         raise SilError("no SIMHDR line in output, did the sim start?")
-    return SimResult(header[0], header[1], header[2], rows, text)
+    return SimResult(header[0], header[1], header[2], rows, text, end_reason)
 
 
 def run(exe, stop_at_s, plant_params=None, servo_signs=None):

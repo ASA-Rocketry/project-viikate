@@ -15,9 +15,18 @@
  * Log lines on stdout, every CONFIG_VIIKATE_SIM_LOG_PERIOD_MS:
  *   SIMHDR,<plant name>,<interface version>,<column names...>
  *   SIM,<values...>
+ *
+ * The run stops early with:
+ *   SIMEND,ground_impact   exit 0: the rocket came back down more than 1 m
+ *                          below the pad after being more than 1 m above it
+ *   SIMERR,<reason>        exit 1: a plant output is not finite
+ *                          (non_finite_output) or the plant reported an
+ *                          error (its message). Nothing is published to the
+ *                          firmware or logged from that step.
  */
 
 #include <math.h>
+#include <stdbool.h>
 #include <stdlib.h>
 #include <string.h>
 #include <zephyr/arch/posix/posix_trace.h>
@@ -27,6 +36,7 @@
 #include <zephyr/sys/printk.h>
 
 #include "cmdline.h"
+#include "posix_board_if.h"
 #include "posix_native_task.h"
 #include "sim_internal.h"
 #include "viikate_plant.h"
@@ -35,6 +45,8 @@
 #define SERVO_SIGNS_USAGE "--servo-signs: expected 4 values of +1/-1\n"
 #define RAD2DEG (180.0 / SIM_PI)
 #define DEG2RAD (SIM_PI / 180.0)
+/* Ground impact: more than this above the pad, then more than this below. */
+#define GROUND_MARGIN_M 1.0
 
 #define SERVO_INFO(n) \
     { \
@@ -66,6 +78,7 @@ static viikate_plant_outputs_t plant_out;
 static struct k_timer plant_timer;
 static uint32_t step_count;
 static uint32_t steps_per_log;
+static bool lifted_off;
 
 static void add_cmdline_options(void) {
     static struct args_struct_t options[] = {
@@ -118,12 +131,21 @@ static void apply_plant_params(char *arg) {
                 item
             );
         }
-        if (viikate_plant_set_param(item, value) != 0) {
-            posix_print_error_and_exit(
-                "--plant-params: %s has no parameter %s\n",
-                viikate_plant_name(),
-                item
-            );
+        switch (viikate_plant_set_param(item, value)) {
+            case 0:
+                break;
+            case -2:
+                posix_print_error_and_exit(
+                    "--plant-params: value out of range for %s\n",
+                    item
+                );
+                break;
+            default:
+                posix_print_error_and_exit(
+                    "--plant-params: %s has no parameter %s\n",
+                    viikate_plant_name(),
+                    item
+                );
         }
         item = next;
     }
@@ -193,7 +215,10 @@ static void log_header(void) {
     printk(
         "SIMHDR,%s,%d,t_ms,roll_deg,roll_rate_dps,"
         "cmd0_deg,cmd1_deg,cmd2_deg,cmd3_deg,"
-        "fin0_deg,fin1_deg,fin2_deg,fin3_deg\n",
+        "fin0_deg,fin1_deg,fin2_deg,fin3_deg,"
+        "pitch_deg,yaw_deg,pitch_rate_dps,yaw_rate_dps,"
+        "pos_n_m,pos_e_m,pos_d_m,vel_n_mps,vel_e_mps,vel_d_mps,"
+        "q_w,q_x,q_y,q_z,sf_x_mps2,sf_y_mps2,sf_z_mps2,pressure_pa\n",
         viikate_plant_name(),
         VIIKATE_PLANT_IF_VERSION
     );
@@ -201,9 +226,12 @@ static void log_header(void) {
 
 static void log_row(void) {
     const viikate_plant_truth_t *t = &plant_out.truth;
+    const double *sf = plant_out.specific_force_body_mps2;
 
     printk(
-        "SIM,%u,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f\n",
+        "SIM,%u,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
+        "%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,%.4f,"
+        "%.6f,%.6f,%.6f,%.6f,%.4f,%.4f,%.4f,%.4f\n",
         (unsigned int)lround(t->t_s * 1000.0),
         t->euler_rad[0] * RAD2DEG,
         t->body_rate_radps[0] * RAD2DEG,
@@ -214,8 +242,68 @@ static void log_row(void) {
         t->fin_angle_rad[0] * RAD2DEG,
         t->fin_angle_rad[1] * RAD2DEG,
         t->fin_angle_rad[2] * RAD2DEG,
-        t->fin_angle_rad[3] * RAD2DEG
+        t->fin_angle_rad[3] * RAD2DEG,
+        t->euler_rad[1] * RAD2DEG,
+        t->euler_rad[2] * RAD2DEG,
+        t->body_rate_radps[1] * RAD2DEG,
+        t->body_rate_radps[2] * RAD2DEG,
+        t->position_ned_m[0],
+        t->position_ned_m[1],
+        t->position_ned_m[2],
+        t->velocity_ned_mps[0],
+        t->velocity_ned_mps[1],
+        t->velocity_ned_mps[2],
+        t->quat_wxyz[0],
+        t->quat_wxyz[1],
+        t->quat_wxyz[2],
+        t->quat_wxyz[3],
+        sf[0],
+        sf[1],
+        sf[2],
+        plant_out.static_pressure_pa
     );
+}
+
+/* The outputs struct holds only doubles, so it can be scanned as an array. */
+BUILD_ASSERT(sizeof(viikate_plant_outputs_t) % sizeof(double) == 0);
+
+static bool outputs_finite(const viikate_plant_outputs_t *out) {
+    const unsigned char *bytes = (const unsigned char *)out;
+
+    for (size_t i = 0; i < sizeof(*out) / sizeof(double); i++) {
+        double v;
+
+        memcpy(&v, bytes + i * sizeof(double), sizeof(v));
+        if (!isfinite(v)) {
+            return false;
+        }
+    }
+    return true;
+}
+
+/* Stop the run if the plant is unhealthy. Called after init and each step. */
+static void check_plant(void) {
+    const char *err = viikate_plant_error();
+
+    if (err != NULL) {
+        printk("SIMERR,%s\n", err);
+        posix_exit(1);
+    }
+    if (!outputs_finite(&plant_out)) {
+        printk("SIMERR,non_finite_output\n");
+        posix_exit(1);
+    }
+}
+
+static void check_ground_impact(void) {
+    const double down_m = plant_out.truth.position_ned_m[2];
+
+    if (down_m < -GROUND_MARGIN_M) {
+        lifted_off = true;
+    } else if (lifted_off && down_m > GROUND_MARGIN_M) {
+        printk("SIMEND,ground_impact\n");
+        posix_exit(0);
+    }
 }
 
 static void plant_tick(struct k_timer *timer) {
@@ -226,12 +314,14 @@ static void plant_tick(struct k_timer *timer) {
             servo_sign[i] * servo_angle_deg(&servos[i]) * DEG2RAD;
     }
     viikate_plant_step(&plant_in, &plant_out);
+    check_plant();
     publish_sensors();
 
     step_count++;
     if (step_count % steps_per_log == 0) {
         log_row();
     }
+    check_ground_impact();
 }
 
 static int sim_bridge_init(void) {
@@ -252,6 +342,7 @@ static int sim_bridge_init(void) {
     }
 
     viikate_plant_init(&plant_out);
+    check_plant();
     publish_sensors();
     log_header();
 
