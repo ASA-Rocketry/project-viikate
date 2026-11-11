@@ -33,6 +33,25 @@ tunable = {
     'rp_gust_seed',              [1 2]       % seeds of the two gust sources
     'rp_servo_tau_s',            d.servo_tau_s    % servo lag time constant
     'rp_servo_rate_limit_radps', d.servo_rate_limit_radps % servo rate limit
+    % Design values. Derived arrays are computed by read_rocket_design (and
+    % by the C applier), so block parameters stay plain variable names.
+    'rp_burn_time_s',            d.burn_time_s     % thrust cut-off after ignition
+    'rp_thrust_t_s',             d.thrust_t_s      % thrust table time, 1 x 128
+    'rp_thrust_n',               d.thrust_n        % thrust table force, 1 x 128
+    'rp_inertia_full_kgm2',      d.inertia_full    % full inertia tensor
+    'rp_inertia_empty_kgm2',     d.inertia_empty   % empty inertia tensor
+    'rp_length_m',               d.length_m        % rocket length
+    'rp_frontal_area_m2',        d.frontal_area_m2 % frontal area
+    'rp_cd0',                    d.cd0             % drag coefficient
+    'rp_cn_alpha',               d.cn_alpha        % normal force slope
+    'rp_cmq',                    d.cmq             % pitch damping slope
+    'rp_cnr',                    d.cnr             % yaw damping slope
+    'rp_clp',                    d.clp             % roll damping slope
+    'rp_r_cp_m',                 d.r_cp            % centre of pressure from CG
+    'rp_roll_ref_length_m',      d.roll_ref_length_m % roll damping reference
+    'rp_canard_area_m2',         d.canard_area_m2  % canard area
+    'rp_canard_cl_alpha',        d.canard_cl_alpha % canard lift slope
+    'rp_fin_positions_m',        d.fin_positions   % canard centres of lift, 4 x 3
 };
 for k = 1:size(tunable, 1)
     p = Simulink.Parameter(tunable{k, 2});
@@ -40,29 +59,8 @@ for k = 1:size(tunable, 1)
     assignin('base', tunable{k, 1}, p);
 end
 
-% --- Fixed at generation -----------------------------------------------------
+% --- Fixed at generation: not part of a design ------------------------------
 v = struct();
-
-% From the design
-v.bt = d.burn_time_s;                       % motor burn time, s
-v.thrust_t_s = d.thrust_t_s;                % thrust table time, s (128 points)
-v.thrust_n = d.thrust_n;                    % thrust table force, N
-v.Ie = d.inertia_empty;                     % empty inertia, kg m^2
-v.If = d.inertia_full;                      % full inertia, kg m^2
-v.Cd0 = d.cd0;                              % drag coefficient
-v.A = d.frontal_area_m2;                    % frontal area, m^2
-v.Af = d.canard_area_m2;                    % fin area, m^2
-v.fin_positions = d.fin_positions;          % canard centres of lift from CG, m
-v.r_cp = d.r_cp;                            % centre of pressure from CG, m
-v.Cla = d.canard_cl_alpha;                  % fin lift coefficient slope
-v.CNa = d.cn_alpha;                         % normal force coefficient slope
-v.Cmq = d.cmq;                              % pitch damping moment slope
-v.Cnr = d.cnr;                              % yaw damping moment slope
-v.Clp = d.clp;                              % roll damping moment slope
-v.L = d.length_m;                           % rocket length, m
-v.b = d.roll_ref_length_m;                  % roll damping reference length, m
-
-% Fixed in the model, not part of a design
 v.gravity = [-9.819 0 0]';                  % inertial frame (x up)
 v.rho = 1.225;                              % air density, kg/m^3
 v.N = [0 -1 0; 0 0 -1; 0 1 0; 0 0 1];       % canard lift directions

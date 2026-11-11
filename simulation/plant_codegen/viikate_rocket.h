@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.1
+ * Model version                  : 5.3
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:27:43 2026
+ * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -243,47 +243,22 @@ typedef struct {
 
 /* Constant parameters (default storage) */
 typedef struct {
-  /* Variable: Ie
-   * Referenced by: '<S79>/slope'
-   */
-  double slope_Ie[9];
-
-  /* Variable: If
-   * Referenced by: '<S79>/slope'
-   */
-  double slope_If[9];
-
   /* Expression: gravity
    * Referenced by: '<S1>/Constant'
    */
   double Constant_Value_c[3];
-
-  /* Expression: fin_positions
-   * Referenced by: '<S85>/Constant'
-   */
-  double Constant_Value_e[12];
 
   /* Expression: N
    * Referenced by: '<S85>/Lift directions'
    */
   double Liftdirections_Value[12];
 
-  /* Expression: thrust_n
-   * Referenced by: '<S1>/thrust_curve'
-   */
-  double thrust_curve_tableData[128];
-
-  /* Expression: thrust_t_s
-   * Referenced by: '<S1>/thrust_curve'
-   */
-  double thrust_curve_bp01Data[128];
-
   /* Pooled Parameter (Expression: matrix)
    * Referenced by:
    *   '<S81>/[0]'
    *   '<S81>/[1]'
    */
-  double pooled8[18];
+  double pooled7[18];
 } ConstP_viikate_rocket_T;
 
 /* External inputs (root inport signals with default storage) */
@@ -381,6 +356,46 @@ extern const ConstP_viikate_rocket_T viikate_rocket_ConstP;
  * these parameters and exports their symbols.
  *
  */
+extern double rp_burn_time_s;          /* Variable: rp_burn_time_s
+                                        * Referenced by:
+                                        *   '<Root>/mass_rate'
+                                        *   '<S1>/burn_time'
+                                        *   '<S5>/Constant2'
+                                        */
+extern double rp_canard_area_m2;       /* Variable: rp_canard_area_m2
+                                        * Referenced by: '<S85>/Gain1'
+                                        */
+extern double rp_canard_cl_alpha;      /* Variable: rp_canard_cl_alpha
+                                        * Referenced by: '<S85>/Gain'
+                                        */
+extern double rp_cd0;                  /* Variable: rp_cd0
+                                        * Referenced by: '<S88>/Constant3'
+                                        */
+extern double rp_clp;                  /* Variable: rp_clp
+                                        * Referenced by: '<S87>/Gain5'
+                                        */
+extern double rp_cmq;                  /* Variable: rp_cmq
+                                        * Referenced by: '<S87>/Gain3'
+                                        */
+extern double rp_cn_alpha;             /* Variable: rp_cn_alpha
+                                        * Referenced by:
+                                        *   '<S4>/Gain2'
+                                        *   '<S88>/Gain8'
+                                        */
+extern double rp_cnr;                  /* Variable: rp_cnr
+                                        * Referenced by: '<S87>/Gain4'
+                                        */
+extern double rp_fin_positions_m[12];  /* Variable: rp_fin_positions_m
+                                        * Referenced by: '<S85>/Constant'
+                                        */
+extern double rp_frontal_area_m2;      /* Variable: rp_frontal_area_m2
+                                        * Referenced by:
+                                        *   '<S4>/Gain2'
+                                        *   '<S87>/Gain10'
+                                        *   '<S87>/Gain11'
+                                        *   '<S87>/Gain6'
+                                        *   '<S88>/Gain9'
+                                        */
 extern double rp_gust_seed[2];         /* Variable: rp_gust_seed
                                         * Referenced by:
                                         *   '<S6>/Random Number1'
@@ -393,6 +408,17 @@ extern double rp_gust_variance;        /* Variable: rp_gust_variance
                                         */
 extern double rp_ignition_time_s;      /* Variable: rp_ignition_time_s
                                         * Referenced by: '<Root>/ignition_time'
+                                        */
+extern double rp_inertia_empty_kgm2[9];/* Variable: rp_inertia_empty_kgm2
+                                        * Referenced by: '<S79>/slope'
+                                        */
+extern double rp_inertia_full_kgm2[9]; /* Variable: rp_inertia_full_kgm2
+                                        * Referenced by: '<S79>/slope'
+                                        */
+extern double rp_length_m;             /* Variable: rp_length_m
+                                        * Referenced by:
+                                        *   '<S87>/Gain10'
+                                        *   '<S87>/Gain6'
                                         */
 extern double rp_mass_fuel_kg;         /* Variable: rp_mass_fuel_kg
                                         * Referenced by:
@@ -412,14 +438,26 @@ extern double rp_mass_full_kg;         /* Variable: rp_mass_full_kg
                                         *   '<S79>/Constant1'
                                         *   '<S79>/slope'
                                         */
+extern double rp_r_cp_m[3];            /* Variable: rp_r_cp_m
+                                        * Referenced by: '<S4>/Constant1'
+                                        */
+extern double rp_roll_ref_length_m;    /* Variable: rp_roll_ref_length_m
+                                        * Referenced by: '<S87>/Gain11'
+                                        */
 extern double rp_servo_rate_limit_radps;/* Variable: rp_servo_rate_limit_radps
                                          * Referenced by: '<Root>/servo_rate_limit'
                                          */
 extern double rp_servo_tau_s;          /* Variable: rp_servo_tau_s
                                         * Referenced by: '<Root>/servo_gain'
                                         */
+extern double rp_thrust_n[128];        /* Variable: rp_thrust_n
+                                        * Referenced by: '<S1>/thrust_curve'
+                                        */
 extern double rp_thrust_scale;         /* Variable: rp_thrust_scale
                                         * Referenced by: '<S1>/thrust_scale'
+                                        */
+extern double rp_thrust_t_s[128];      /* Variable: rp_thrust_t_s
+                                        * Referenced by: '<S1>/thrust_curve'
                                         */
 extern double rp_wind_model_mps[3];    /* Variable: rp_wind_model_mps
                                         * Referenced by: '<S6>/Integrator'

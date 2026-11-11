@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.1
+ * Model version                  : 5.3
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:27:43 2026
+ * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -28,6 +28,48 @@
 #define viikate_rocket_period          (0.001)
 
 /* Exported block parameters */
+double rp_burn_time_s = 1.0;           /* Variable: rp_burn_time_s
+                                        * Referenced by:
+                                        *   '<Root>/mass_rate'
+                                        *   '<S1>/burn_time'
+                                        *   '<S5>/Constant2'
+                                        */
+double rp_canard_area_m2 = 0.0016875;  /* Variable: rp_canard_area_m2
+                                        * Referenced by: '<S85>/Gain1'
+                                        */
+double rp_canard_cl_alpha = 1.975;     /* Variable: rp_canard_cl_alpha
+                                        * Referenced by: '<S85>/Gain'
+                                        */
+double rp_cd0 = 0.635;                 /* Variable: rp_cd0
+                                        * Referenced by: '<S88>/Constant3'
+                                        */
+double rp_clp = -0.3;                  /* Variable: rp_clp
+                                        * Referenced by: '<S87>/Gain5'
+                                        */
+double rp_cmq = -40.0;                 /* Variable: rp_cmq
+                                        * Referenced by: '<S87>/Gain3'
+                                        */
+double rp_cn_alpha = 20.0;             /* Variable: rp_cn_alpha
+                                        * Referenced by:
+                                        *   '<S4>/Gain2'
+                                        *   '<S88>/Gain8'
+                                        */
+double rp_cnr = -40.0;                 /* Variable: rp_cnr
+                                        * Referenced by: '<S87>/Gain4'
+                                        */
+double rp_fin_positions_m[12] = { 0.4689, 0.4689, 0.4689, 0.4689, 0.0,
+  -0.0596975, 0.0, 0.0596975, 0.0596975, 0.0, -0.0596975, 0.0 } ;/* Variable: rp_fin_positions_m
+                                                                  * Referenced by: '<S85>/Constant'
+                                                                  */
+
+double rp_frontal_area_m2 = 0.00442;   /* Variable: rp_frontal_area_m2
+                                        * Referenced by:
+                                        *   '<S4>/Gain2'
+                                        *   '<S87>/Gain10'
+                                        *   '<S87>/Gain11'
+                                        *   '<S87>/Gain6'
+                                        *   '<S88>/Gain9'
+                                        */
 double rp_gust_seed[2] = { 1.0, 2.0 } ;/* Variable: rp_gust_seed
                                         * Referenced by:
                                         *   '<S6>/Random Number1'
@@ -41,6 +83,21 @@ double rp_gust_variance = 2.0;         /* Variable: rp_gust_variance
                                         */
 double rp_ignition_time_s = 3.0;       /* Variable: rp_ignition_time_s
                                         * Referenced by: '<Root>/ignition_time'
+                                        */
+double rp_inertia_empty_kgm2[9] = { 0.0027, 0.0, 0.0, 0.0, 0.1655, 0.0, 0.0, 0.0,
+  0.1655 } ;                           /* Variable: rp_inertia_empty_kgm2
+                                        * Referenced by: '<S79>/slope'
+                                        */
+
+double rp_inertia_full_kgm2[9] = { 0.0027, 0.0, 0.0, 0.0, 0.177, 0.0, 0.0, 0.0,
+  0.177 } ;                            /* Variable: rp_inertia_full_kgm2
+                                        * Referenced by: '<S79>/slope'
+                                        */
+
+double rp_length_m = 1.27;             /* Variable: rp_length_m
+                                        * Referenced by:
+                                        *   '<S87>/Gain10'
+                                        *   '<S87>/Gain6'
                                         */
 double rp_mass_fuel_kg = 0.063;        /* Variable: rp_mass_fuel_kg
                                         * Referenced by:
@@ -60,15 +117,52 @@ double rp_mass_full_kg = 1.352;        /* Variable: rp_mass_full_kg
                                         *   '<S79>/Constant1'
                                         *   '<S79>/slope'
                                         */
+double rp_r_cp_m[3] = { -0.346, 0.0, 0.0 } ;/* Variable: rp_r_cp_m
+                                             * Referenced by: '<S4>/Constant1'
+                                             */
+
+double rp_roll_ref_length_m = 0.14;    /* Variable: rp_roll_ref_length_m
+                                        * Referenced by: '<S87>/Gain11'
+                                        */
 double rp_servo_rate_limit_radps = 10.471975511965978;/* Variable: rp_servo_rate_limit_radps
                                                        * Referenced by: '<Root>/servo_rate_limit'
                                                        */
 double rp_servo_tau_s = 0.05;          /* Variable: rp_servo_tau_s
                                         * Referenced by: '<Root>/servo_gain'
                                         */
+double rp_thrust_n[128] = { 65.1331111111111, 89.654, 117.24, 119.654, 111.033,
+  124.826, 134.136, 149.308, 155.17, 138.274, 133.791, 88.964, 44.482, 22.414,
+  2.069, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+  0.0, 0.0, 0.0 } ;                    /* Variable: rp_thrust_n
+                                        * Referenced by: '<S1>/thrust_curve'
+                                        */
+
 double rp_thrust_scale = 1.0;          /* Variable: rp_thrust_scale
                                         * Referenced by: '<S1>/thrust_scale'
                                         */
+double rp_thrust_t_s[128] = { 0.0, 0.008, 0.017, 0.027, 0.047, 0.115, 0.2, 0.399,
+  0.601, 0.8, 0.824, 0.878, 0.914, 0.933, 0.974, 1.001, 2.001, 3.001,
+  4.0009999999999994, 5.0009999999999994, 6.0009999999999994, 7.0009999999999994,
+  8.001, 9.001, 10.001, 11.001, 12.001, 13.001, 14.001, 15.001, 16.001, 17.001,
+  18.001, 19.001, 20.001, 21.001, 22.001, 23.001, 24.001, 25.001, 26.001, 27.001,
+  28.001, 29.001, 30.001, 31.001, 32.001, 33.001, 34.001, 35.001, 36.001, 37.001,
+  38.001, 39.001, 40.001, 41.001, 42.001, 43.001, 44.001, 45.001, 46.001, 47.001,
+  48.001, 49.001, 50.001, 51.001, 52.001, 53.001, 54.001, 55.001, 56.001, 57.001,
+  58.001, 59.001, 60.001, 61.001, 62.001, 63.001, 64.001, 65.001, 66.001, 67.001,
+  68.001, 69.001, 70.001, 71.001, 72.001, 73.001, 74.001, 75.001, 76.001, 77.001,
+  78.001, 79.001, 80.001, 81.001, 82.001, 83.001, 84.001, 85.001, 86.001, 87.001,
+  88.001, 89.001, 90.001, 91.001, 92.001, 93.001, 94.001, 95.001, 96.001, 97.001,
+  98.001, 99.001, 100.001, 101.001, 102.001, 103.001, 104.001, 105.001, 106.001,
+  107.001, 108.001, 109.001, 110.001, 111.001, 112.001, 113.001 } ;/* Variable: rp_thrust_t_s
+                                                                    * Referenced by: '<S1>/thrust_curve'
+                                                                    */
+
 double rp_wind_model_mps[3] = { 0.0, 5.0, 5.0 } ;/* Variable: rp_wind_model_mps
                                                   * Referenced by: '<S6>/Integrator'
                                                   */
@@ -92,7 +186,7 @@ ExtY_viikate_rocket_T viikate_rocket_Y;
 static RT_MODEL_viikate_rocket_T viikate_rocket_M_;
 RT_MODEL_viikate_rocket_T *const viikate_rocket_M = &viikate_rocket_M_;
 static void rate_scheduler(void);
-double look1_binlxpw(double u0, const double bp0[], const double table[],
+double look1_binlcpw(double u0, const double bp0[], const double table[],
                      uint32_t maxIndex)
 {
   double frac;
@@ -103,20 +197,20 @@ double look1_binlxpw(double u0, const double bp0[], const double table[],
      Search method: 'binary'
      Use previous index: 'off'
      Interpolation method: 'Linear point-slope'
-     Extrapolation method: 'Linear'
+     Extrapolation method: 'Clip'
      Use last breakpoint for index at or above upper limit: 'off'
      Remove protection against out-of-range input in generated code: 'off'
    */
   /* Prelookup - Index and Fraction
      Index Search method: 'binary'
-     Extrapolation method: 'Linear'
+     Extrapolation method: 'Clip'
      Use previous index: 'off'
      Use last breakpoint for index at or above upper limit: 'off'
      Remove protection against out-of-range input in generated code: 'off'
    */
   if (u0 <= bp0[0U]) {
     iLeft = 0U;
-    frac = (u0 - bp0[0U]) / (bp0[1U] - bp0[0U]);
+    frac = 0.0;
   } else if (u0 < bp0[maxIndex]) {
     uint32_t bpIdx;
     uint32_t iRght;
@@ -138,7 +232,7 @@ double look1_binlxpw(double u0, const double bp0[], const double table[],
     frac = (u0 - bp0[iLeft]) / (bp0[iLeft + 1U] - bp0[iLeft]);
   } else {
     iLeft = maxIndex - 1U;
-    frac = (u0 - bp0[maxIndex - 1U]) / (bp0[maxIndex] - bp0[maxIndex - 1U]);
+    frac = 1.0;
   }
 
   /* Column-major Interpolation 1-D
@@ -678,7 +772,7 @@ void viikate_rocket_step(void)
      *  Constant: '<S5>/Constant2'
      *  Product: '<S5>/Product'
      */
-    Saturation = -rp_mass_fuel_kg * rtb_ixk_f + rp_mass_full_kg;
+    Saturation = -rp_mass_fuel_kg / rp_burn_time_s * rtb_ixk_f + rp_mass_full_kg;
 
     /* Saturate: '<S5>/Saturation' */
     servo_lag_idx_0 = rp_mass_full_kg - rp_mass_fuel_kg;
@@ -847,25 +941,25 @@ void viikate_rocket_step(void)
     Integrator_CSTATE = rt_atan2d_snf(Integrator_CSTATE, rtb_ci_idx_0);
 
     /* Gain: '<S85>/Gain' */
-    rtb_ci_idx_0 = 1.975 * Integrator_CSTATE;
+    rtb_ci_idx_0 = rp_canard_cl_alpha * Integrator_CSTATE;
 
     /* Trigonometry: '<S85>/Atan2' */
     Integrator_CSTATE = rt_atan2d_snf(rtb_ni_idx_1, rtb_ci_idx_1);
 
     /* Gain: '<S85>/Gain' */
-    rtb_ni_idx_1 = 1.975 * Integrator_CSTATE;
+    rtb_ni_idx_1 = rp_canard_cl_alpha * Integrator_CSTATE;
 
     /* Trigonometry: '<S85>/Atan2' */
     Integrator_CSTATE = rt_atan2d_snf(rtb_kxj, rtb_ci_idx_2);
 
     /* Gain: '<S85>/Gain' */
-    rtb_ci_idx_1 = 1.975 * Integrator_CSTATE;
+    rtb_ci_idx_1 = rp_canard_cl_alpha * Integrator_CSTATE;
 
     /* Trigonometry: '<S85>/Atan2' */
     Integrator_CSTATE = rt_atan2d_snf(rtb_V, rtb_ixk);
 
     /* Gain: '<S85>/Gain' */
-    Integrator_CSTATE *= 1.975;
+    Integrator_CSTATE *= rp_canard_cl_alpha;
 
     /* Sqrt: '<S4>/Square Root' incorporates:
      *  DotProduct: '<S4>/Dot Product'
@@ -880,7 +974,7 @@ void viikate_rocket_step(void)
     rtb_ixk = rtb_V * rtb_V * 0.6125;
 
     /* Gain: '<S85>/Gain1' */
-    rtb_kxj = 0.0016875 * rtb_ixk;
+    rtb_kxj = rp_canard_area_m2 * rtb_ixk;
 
     /* Product: '<S85>/Product1' incorporates:
      *  Gain: '<S85>/Gain'
@@ -913,7 +1007,7 @@ void viikate_rocket_step(void)
     }
 
     /* Gain: '<S4>/Gain2' */
-    rtb_Gain2 = -0.0884 * rtb_ixk;
+    rtb_Gain2 = -rp_frontal_area_m2 * rp_cn_alpha * rtb_ixk;
 
     /* Product: '<S84>/Divide' */
     rtb_ci_idx_2 = 1.0 / rtb_jxi_n;
@@ -937,7 +1031,8 @@ void viikate_rocket_step(void)
      */
     rtb_Liftmagnitude_idx_1 = (((rtb_ci_idx_2 * rtb_ci_idx_2 +
       rtb_Liftmagnitude_idx_0 * rtb_Liftmagnitude_idx_0) + rtb_ci_0 * rtb_ci_0) *
-      60.0 + 0.635) * (-0.00442 * rtb_ixk);
+      (0.15 * rp_cn_alpha * rp_cn_alpha) + rp_cd0) * (-rp_frontal_area_m2 *
+      rtb_ixk);
 
     /* Sum: '<S4>/Add3' incorporates:
      *  Product: '<S4>/Product'
@@ -967,10 +1062,8 @@ void viikate_rocket_step(void)
      *  Product: '<S78>/i x k'
      *  RelationalOperator: '<S1>/burning_cmp'
      */
-    rtb_ixk_f = (double)(rtb_ixk_f < 1.0) * look1_binlxpw(rtb_ixk_f,
-      viikate_rocket_ConstP.thrust_curve_bp01Data,
-      viikate_rocket_ConstP.thrust_curve_tableData, 127U) * rtb_jxi *
-      rp_thrust_scale;
+    rtb_ixk_f = (double)(rtb_ixk_f < rp_burn_time_s) * look1_binlcpw(rtb_ixk_f,
+      rp_thrust_t_s, rp_thrust_n, 127U) * rtb_jxi * rp_thrust_scale;
     tmp = (rtmIsMajorTimeStep(viikate_rocket_M) &&
            viikate_rocket_M->Timing.TaskCounters.TID[1] == 0);
     if (tmp) {
@@ -1554,7 +1647,7 @@ void viikate_rocket_step(void)
     }
 
     /* Gain: '<Root>/mass_rate' */
-    viikate_rocket_DW.mass_rate = -rp_mass_fuel_kg * rtb_jxi;
+    viikate_rocket_DW.mass_rate = -rp_mass_fuel_kg / rp_burn_time_s * rtb_jxi;
 
     /* LookupNDDirect: '<S81>/[0]'
      *
@@ -1564,7 +1657,7 @@ void viikate_rocket_step(void)
      *     Remove protection against out-of-range input in generated code: 'off'
      *   */
     memcpy(&rtb_VectorConcatenate_b[0],
-           &viikate_rocket_ConstP.pooled8[tableOffset], 9U * sizeof(double));
+           &viikate_rocket_ConstP.pooled7[tableOffset], 9U * sizeof(double));
 
     /* LookupNDDirect: '<S81>/[1]'
      *
@@ -1573,7 +1666,7 @@ void viikate_rocket_step(void)
      *  which is contiguous for column-major array
      *     Remove protection against out-of-range input in generated code: 'off'
      *   */
-    memcpy(&rtb_Selector2[0], &viikate_rocket_ConstP.pooled8[i * 9], 9U * sizeof
+    memcpy(&rtb_Selector2[0], &viikate_rocket_ConstP.pooled7[i * 9], 9U * sizeof
            (double));
 
     /* Product: '<S79>/Product' incorporates:
@@ -1598,8 +1691,8 @@ void viikate_rocket_step(void)
        */
       rtb_MatrixConcatenation[6 * i] = rtb_VectorConcatenate_b[3 * i] * (1.0 -
         rtb_ixj) + rtb_Selector2[3 * i] * rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 3] = (viikate_rocket_ConstP.slope_If[3 * i]
-        - viikate_rocket_ConstP.slope_Ie[3 * i]) / rtb_ci_idx_2 *
+      rtb_MatrixConcatenation[6 * i + 3] = (rp_inertia_full_kgm2[3 * i] -
+        rp_inertia_empty_kgm2[3 * i]) / rtb_ci_idx_2 *
         viikate_rocket_DW.mass_rate;
 
       /* Sum: '<S81>/Sum3' incorporates:
@@ -1624,9 +1717,8 @@ void viikate_rocket_step(void)
       rtb_MatrixConcatenation[rtb_PreLookUpIndexSearch_o1] = (1.0 - rtb_ixj) *
         rtb_VectorConcatenate_b[tableOffset] + rtb_Selector2[tableOffset] *
         rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 4] =
-        (viikate_rocket_ConstP.slope_If[tableOffset] -
-         viikate_rocket_ConstP.slope_Ie[tableOffset]) / rtb_ci_idx_2 *
+      rtb_MatrixConcatenation[6 * i + 4] = (rp_inertia_full_kgm2[tableOffset] -
+        rp_inertia_empty_kgm2[tableOffset]) / rtb_ci_idx_2 *
         viikate_rocket_DW.mass_rate;
 
       /* Sum: '<S81>/Sum3' incorporates:
@@ -1651,9 +1743,8 @@ void viikate_rocket_step(void)
       rtb_MatrixConcatenation[rtb_MatrixConcatenation_tmp] = (1.0 - rtb_ixj) *
         rtb_VectorConcatenate_b[tableOffset] + rtb_Selector2[tableOffset] *
         rtb_ixj;
-      rtb_MatrixConcatenation[6 * i + 5] =
-        (viikate_rocket_ConstP.slope_If[tableOffset] -
-         viikate_rocket_ConstP.slope_Ie[tableOffset]) / rtb_ci_idx_2 *
+      rtb_MatrixConcatenation[6 * i + 5] = (rp_inertia_full_kgm2[tableOffset] -
+        rp_inertia_empty_kgm2[tableOffset]) / rtb_ci_idx_2 *
         viikate_rocket_DW.mass_rate;
 
       /* Product: '<S75>/Product' incorporates:
@@ -1677,11 +1768,11 @@ void viikate_rocket_step(void)
     rtb_jxi = 0.0;
     rtb_ixk_f = 0.0;
     for (i = 0; i < 4; i++) {
-      rtb_jxi_n = viikate_rocket_ConstP.Constant_Value_e[i + 4];
-      Saturation = viikate_rocket_ConstP.Constant_Value_e[i + 8];
+      rtb_jxi_n = rp_fin_positions_m[i + 4];
+      Saturation = rp_fin_positions_m[i + 8];
       rtb_ci_idx_2 = rtb_ci[i + 8];
       rtb_Gain2 = rtb_ci[i + 4];
-      rtb_ixj = viikate_rocket_ConstP.Constant_Value_e[i];
+      rtb_ixj = rp_fin_positions_m[i];
       rtb_ci_0 = rtb_ci[i];
       rtb_ixk_f += rtb_ixj * rtb_Gain2 - rtb_ci_0 * rtb_jxi_n;
       rtb_q0q1q2q3_idx_3 += rtb_jxi_n * rtb_ci_idx_2 - rtb_Gain2 * Saturation;
@@ -1697,13 +1788,12 @@ void viikate_rocket_step(void)
     /* Product: '<S86>/Element Product' incorporates:
      *  Constant: '<S4>/Constant1'
      */
-    rtb_ElementProduct[0] = 0.0 * rtb_Product2_ih[2];
-    rtb_q0q1q2q3_idx_3 = rtb_Product2_ih[0] * 0.0;
-    rtb_ElementProduct[1] = rtb_q0q1q2q3_idx_3;
-    rtb_ElementProduct[2] = -0.346 * rtb_Product2_ih[1];
-    rtb_ElementProduct[3] = rtb_Product2_ih[1] * 0.0;
-    rtb_ElementProduct[4] = -0.346 * rtb_Product2_ih[2];
-    rtb_ElementProduct[5] = rtb_q0q1q2q3_idx_3;
+    rtb_ElementProduct[0] = rp_r_cp_m[1] * rtb_Product2_ih[2];
+    rtb_ElementProduct[1] = rtb_Product2_ih[0] * rp_r_cp_m[2];
+    rtb_ElementProduct[2] = rp_r_cp_m[0] * rtb_Product2_ih[1];
+    rtb_ElementProduct[3] = rtb_Product2_ih[1] * rp_r_cp_m[2];
+    rtb_ElementProduct[4] = rp_r_cp_m[0] * rtb_Product2_ih[2];
+    rtb_ElementProduct[5] = rtb_Product2_ih[0] * rp_r_cp_m[1];
 
     /* Product: '<S87>/Divide1' incorporates:
      *  Gain: '<S87>/Gain10'
@@ -1716,12 +1806,12 @@ void viikate_rocket_step(void)
      *  Product: '<S87>/Product2'
      */
     rtb_ci_idx_2 = 1.0 / (2.0 * rtb_V);
-    tmp_0[0] = -0.3 * rtb_Sum_fh[0] * 8.663200000000002E-5 * rtb_ixk *
-      rtb_ci_idx_2;
-    tmp_0[1] = -40.0 * rtb_Sum_fh[1] * 0.007129018000000001 * rtb_ixk *
-      rtb_ci_idx_2;
-    tmp_0[2] = -40.0 * rtb_Sum_fh[2] * 0.007129018000000001 * rtb_ixk *
-      rtb_ci_idx_2;
+    tmp_0[0] = rp_roll_ref_length_m * rp_roll_ref_length_m * rp_frontal_area_m2 *
+      (rp_clp * rtb_Sum_fh[0]) * rtb_ixk * rtb_ci_idx_2;
+    tmp_0[1] = rp_length_m * rp_length_m * rp_frontal_area_m2 * (rp_cmq *
+      rtb_Sum_fh[1]) * rtb_ixk * rtb_ci_idx_2;
+    tmp_0[2] = rp_length_m * rp_length_m * rp_frontal_area_m2 * (rp_cnr *
+      rtb_Sum_fh[2]) * rtb_ixk * rtb_ci_idx_2;
 
     /* Product: '<S76>/Product' incorporates:
      *  Concatenate: '<S9>/Matrix Concatenation'
