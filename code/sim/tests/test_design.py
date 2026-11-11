@@ -173,6 +173,17 @@ class DesignFileTest(unittest.TestCase):
         _, _, want, _ = load_c(V1)
         self.assertEqual(got, want, err)
 
+    def test_parser_builds_with_gnu_dialect(self):
+        # GCC's default dialect and _GNU_SOURCE pull in <sys/types.h>, whose
+        # POSIX names (key_t, ...) the parser must not reuse.
+        out = sil.REPLAY_BUILD_DIR / "rocket_design_gnu.o"
+        sil._host_cc(
+            [sil.ROCKET_DIR / "rocket_design.c"],
+            out,
+            ["-std=gnu11", "-D_GNU_SOURCE", "-c"],
+        )
+        self.assertTrue(out.exists())
+
     # --- Design errors -------------------------------------------------------
 
     def test_unknown_key(self):
