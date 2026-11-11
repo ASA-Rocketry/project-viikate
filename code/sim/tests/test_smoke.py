@@ -56,6 +56,15 @@ class SmokeTest(unittest.TestCase):
         second = sil.run(EXE, 4)
         self.assertEqual(first.rows, second.rows)
 
+    def test_non_finite_plant_output_stops_the_run(self):
+        # airspeed 0 makes the toy plant's roll damping 0/0
+        with self.assertRaises(sil.SilError) as ctx:
+            sil.run(EXE, 3, plant_params={"airspeed_mps": 0.0})
+        self.assertIn("SIMERR,non_finite_output", str(ctx.exception))
+
+    def test_normal_run_has_no_end_marker(self):
+        self.assertIsNone(sil.run(EXE, 3).end_reason)
+
     def test_unknown_plant_param_is_rejected(self):
         with self.assertRaises(sil.SilError):
             sil.run(EXE, 1, plant_params={"no_such_param": 1.0})
