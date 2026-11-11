@@ -24,7 +24,7 @@
 extern "C" {
 #endif
 
-#define VIIKATE_PLANT_IF_VERSION 2
+#define VIIKATE_PLANT_IF_VERSION 3
 #define VIIKATE_PLANT_FIN_COUNT 4
 
 typedef struct {
@@ -64,6 +64,19 @@ const char *viikate_plant_name(void);
 
 /* Fixed integration step of the plant. */
 double viikate_plant_step_size_s(void);
+
+/*
+ * Load a design file (simulation/rockets/<name>.rocket) before any
+ * viikate_plant_set_param() and before viikate_plant_init(). Returns 0, or
+ * -1 with the reason in viikate_plant_error().
+ */
+int viikate_plant_load_design(const char *path);
+
+/*
+ * Name of the design in use: the built-in one before any load, the file's
+ * after a load. NULL for a plant without designs.
+ */
+const char *viikate_plant_design_name(void);
 
 /*
  * Set a scenario parameter by name before viikate_plant_init().
