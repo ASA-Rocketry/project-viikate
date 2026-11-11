@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.1
+ * Model version                  : 5.3
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:27:43 2026
+ * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -51,7 +51,7 @@ extern void rt_mrdivide_U1d1x3_U2d_9vOrDY9Z(const double u0[3], const double u1
   [9], double y[3]);
 extern double rt_urand_Upu32_Yd_f_pw_snf(uint32_t *u);
 extern double rt_nrand_Upu32_Yd_f_pw_snf(uint32_t *u);
-extern double look1_binlxpw(double u0, const double bp0[], const double table[],
+extern double look1_binlcpw(double u0, const double bp0[], const double table[],
   uint32_t maxIndex);
 extern int32_t plook_s32dd_bincp(double u, const double bp[], uint32_t maxIndex,
   double *fraction, int32_t *prevIndex);
