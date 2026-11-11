@@ -4,13 +4,22 @@ produced in simulation/plant_codegen/reference (generate_plant.m)."""
 
 import csv
 import math
+import shutil
+import subprocess
+import tempfile
 import unittest
+from pathlib import Path
 
-from tests import common
+from tests import common, rocket_design
 from tests.common import sil
 
 EXE = None
 REF_DIR = sil.REPO_DIR / "simulation" / "plant_codegen" / "reference"
+REF_INPUT = REF_DIR / "input.csv"
+REF_PARAMS = (REF_DIR / "params.txt").read_text().split()
+V1 = rocket_design.ROCKETS_DIR / "viikate_v1.rocket"
+V1_MOTOR = rocket_design.ROCKETS_DIR / "motors" / "viikate_v1.eng"
+PERTURBED = rocket_design.ROCKETS_DIR / "test" / "perturbed.rocket"
 H = math.sqrt(0.5)
 G_MODEL = 9.819
 # Model inertial frame (x up) to NED.
@@ -24,6 +33,30 @@ def setUpModule():
 
 def replay(*args):
     return sil.run_replay(EXE, [str(a) for a in args])
+
+
+def replay_proc(*args, cwd=None):
+    """plant_replay as a finished process, for exit codes and stderr."""
+    return subprocess.run(
+        [str(EXE), *[str(a) for a in args]],
+        capture_output=True, text=True, cwd=cwd, timeout=sil.RUN_TIMEOUT_S,
+    )
+
+
+def changed_design(key, count):
+    """viikate_v1 with one key changed: x1.2, or 1e-4 for the absent
+    products of inertia."""
+    lines = V1.read_text().splitlines()
+    if key not in rocket_design.load(V1) or key.endswith("_products_kgm2"):
+        lines.append(f"{key} = " + ", ".join(["1e-4"] * count))
+        return "\n".join(lines) + "\n"
+    for i, line in enumerate(lines):
+        name, sep, value = line.partition("=")
+        if sep and name.strip() == key:
+            values = [float(v) * 1.2 for v in value.split("#")[0].split(",")]
+            lines[i] = f"{key} = " + ", ".join(repr(v) for v in values)
+            return "\n".join(lines) + "\n"
+    raise AssertionError(f"{key} not in {V1}")
 
 
 def read_csv(path):
@@ -67,7 +100,19 @@ class ReplayTest(unittest.TestCase):
         rows = replay(
             "--input", REF_DIR / "input.csv", "--duration", 8, *params
         )
-        ref = read_csv(REF_DIR / "output.csv")
+        self.assert_matches_reference(rows, REF_DIR)
+
+    def test_perturbed_matches_simulink_reference(self):
+        ref_dir = REF_DIR / "perturbed"
+        params = (ref_dir / "params.txt").read_text().split()
+        rows = replay(
+            "--rocket", PERTURBED, "--input", ref_dir / "input.csv",
+            "--duration", 8, *params,
+        )
+        self.assert_matches_reference(rows, ref_dir)
+
+    def assert_matches_reference(self, rows, ref_dir):
+        ref = read_csv(ref_dir / "output.csv")
         self.assertEqual(len(rows), len(ref))
         pos0 = [ref[0]["pos_x"], ref[0]["pos_y"], ref[0]["pos_z"]]
         tol = 1e-4
@@ -140,6 +185,131 @@ class ReplayTest(unittest.TestCase):
                 with self.assertRaises(sil.SilError) as ctx:
                     replay("--zero-input", "--duration", 1, arg)
                 self.assertIn(name, str(ctx.exception))
+
+    # --- Design files (--rocket) ---------------------------------------------
+
+    def ref_rows(self, *args):
+        """The reference scenario: fins move at 1.5-2.5 s, after the 0.5 s
+        ignition (params.txt), so aerodynamic values act on the flight."""
+        return replay(
+            "--input", REF_INPUT, "--duration", 8, *REF_PARAMS, *args
+        )
+
+    def assertRowsClose(self, a, b, tol):
+        self.assertEqual(len(a), len(b))
+        for ra, rb in zip(a, b):
+            for name in ra:
+                self.assertClose(ra[name], rb[name], tol, f"{name} at {ra['t_s']} s")
+
+    def test_builtin_matches_v1_file(self):
+        self.assertRowsClose(self.ref_rows(), self.ref_rows("--rocket", V1), 1e-9)
+
+    def test_each_design_key_changes_the_flight(self):
+        base = {}
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "motors").mkdir()
+            shutil.copy(V1_MOTOR, tmp / "motors")
+            step = tmp / "step.csv"
+            step.write_text(
+                "t_s,fin0_rad,fin1_rad,fin2_rad,fin3_rad\n"
+                "0,0,0,0,0\n1.5,0.7,0.7,0.7,0.7\n"
+            )
+            for name, count, _, _ in rocket_design.KEYS:
+                with self.subTest(key=name):
+                    path = tmp / f"{name}.rocket"
+                    path.write_text(changed_design(name, count))
+                    # The reference input's 2 degree steps never reach the
+                    # 600 deg/s servo rate limit; a 0.7 rad step does.
+                    inp = step if name == "servo_rate_limit_dps" else REF_INPUT
+                    run = ("--input", inp, "--duration", 8, *REF_PARAMS)
+                    if inp not in base:
+                        base[inp] = replay("--rocket", V1, *run)
+                    rows = replay("--rocket", path, *run)
+                    self.assertEqual(len(rows), len(base[inp]))
+                    diff = max(
+                        abs(r[c] - b[c])
+                        for r, b in zip(rows, base[inp])
+                        for c in r
+                    )
+                    self.assertGreater(diff, 1e-9, f"{name} has no effect")
+
+    def test_print_design_matches_python_reader(self):
+        for path in (V1, PERTURBED):
+            with self.subTest(design=path.name):
+                proc = replay_proc("--rocket", path, "--print-design")
+                self.assertEqual(proc.returncode, 0, proc.stderr)
+                self.assertEqual(
+                    proc.stdout,
+                    rocket_design.format_design(rocket_design.load(path)),
+                )
+
+    def test_print_design_requires_rocket(self):
+        proc = replay_proc("--print-design")
+        self.assertEqual(proc.returncode, 1)
+
+    def test_bad_design_file_exits_2(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = Path(tmp) / "bad.rocket"
+            path.write_text("name = bad\nfoo = 1\n")
+            proc = replay_proc("--rocket", path, "--zero-input", "--duration", 1)
+            self.assertEqual(proc.returncode, 2)
+            self.assertIn(f"{path}:2: unknown key foo", proc.stderr)
+
+    def test_missing_design_file_exits_2(self):
+        proc = replay_proc(
+            "--rocket", "/nonexistent/x.rocket", "--zero-input", "--duration", 1
+        )
+        self.assertEqual(proc.returncode, 2)
+        self.assertIn("/nonexistent/x.rocket", proc.stderr)
+
+    def test_design_override_order(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmp = Path(tmp)
+            (tmp / "motors").mkdir()
+            shutil.copy(V1_MOTOR, tmp / "motors")
+            path = tmp / "cd.rocket"
+            path.write_text(V1.read_text().replace("cd0 = 0.635", "cd0 = 0.7"))
+            # The parameter comes first on the command line, the design file
+            # is still applied before it.
+            self.assertRowsClose(
+                self.ref_rows("cd0=0.7", "--rocket", V1),
+                self.ref_rows("--rocket", path),
+                1e-12,
+            )
+
+    def test_override_that_breaks_design_is_rejected(self):
+        proc = replay_proc(
+            "--rocket", V1, "--zero-input", "--duration", 1, "mass_fuel_kg=2"
+        )
+        self.assertEqual(proc.returncode, 3)
+        self.assertIn("mass_fuel_kg must be less than mass_full_kg", proc.stderr)
+
+    def test_relative_rocket_path_from_other_cwd(self):
+        proc = replay_proc(
+            "--rocket", "perturbed.rocket", "--zero-input", "--duration", 2,
+            cwd=PERTURBED.parent,
+        )
+        self.assertEqual(proc.returncode, 0, proc.stderr)
+        absolute = replay_proc(
+            "--rocket", PERTURBED, "--zero-input", "--duration", 2
+        )
+        self.assertEqual(proc.stdout, absolute.stdout)
+
+    def test_old_servo_rate_name_is_gone(self):
+        proc = replay_proc(
+            "--zero-input", "--duration", 1, "servo_rate_limit_radps=10"
+        )
+        self.assertEqual(proc.returncode, 2)
+        replay("--zero-input", "--duration", 1, "servo_rate_limit_dps=600")
+
+    def test_design_scalar_override_reaches_the_plant(self):
+        rows = self.ref_rows("cp_aft_of_cg_m=0.2")
+        self.assertGreater(
+            max(abs(a["pitch_rad"] - b["pitch_rad"])
+                for a, b in zip(rows, self.ref_rows())),
+            1e-9,
+        )
 
     def test_fuel_above_full_mass_is_rejected(self):
         with self.assertRaises(sil.SilError) as ctx:
