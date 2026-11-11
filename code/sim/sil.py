@@ -8,6 +8,7 @@ other hosts).
 
     python3 code/sim/sil.py build
     python3 code/sim/sil.py run --stop-at 20 --plant-param thrust_scale=0.9
+    python3 code/sim/sil.py run --rocket viikate_v1 --stop-at 20
     python3 code/sim/sil.py run --plant toy --stop-at 6 \
         --plant-param kick_roll_rate_radps=2
     python3 code/sim/sil.py test
@@ -35,6 +36,7 @@ BUILD_ROOT = REPO_DIR / "build"
 PLANTS = ("toy", "rocket")
 ROCKET_DIR = SIM_DIR / "plant" / "rocket"
 CODEGEN_DIR = REPO_DIR / "simulation" / "plant_codegen"
+ROCKETS_DIR = REPO_DIR / "simulation" / "rockets"
 REPLAY_BUILD_DIR = BUILD_ROOT / "sil-replay"
 BOARD = "native_sim/native/64"
 RUN_TIMEOUT_S = 300
@@ -53,6 +55,8 @@ class SimResult:
     log: str = ""
     # Reason from a SIMEND line if the run stopped early, else None.
     end_reason: str = None
+    # Design name from the SIMROCKET line (plants with designs), else None.
+    rocket: str = None
 
     def column(self, name):
         return [row[name] for row in self.rows]
@@ -185,9 +189,13 @@ def parse_log(text):
     header = None
     rows = []
     end_reason = None
+    rocket = None
     for line in text.splitlines():
         if line.startswith("SIMEND,"):
             end_reason = line.split(",", 1)[1].strip()
+            continue
+        if line.startswith("SIMROCKET,"):
+            rocket = line.split(",")[1]
             continue
         if line.startswith("SIMHDR,"):
             fields = line.split(",")
@@ -201,12 +209,27 @@ def parse_log(text):
             rows.append(dict(zip(header[2], values)))
     if header is None:
         raise SilError("no SIMHDR line in output, did the sim start?")
-    return SimResult(header[0], header[1], header[2], rows, text, end_reason)
+    return SimResult(
+        header[0], header[1], header[2], rows, text, end_reason, rocket
+    )
 
 
-def run(exe, stop_at_s, plant_params=None, servo_signs=None):
-    """Run zephyr.exe in simulated time and return the parsed log."""
+def rocket_path(rocket):
+    """A design file path, or a bare name for simulation/rockets/<name>.rocket,
+    as an absolute path."""
+    path = Path(rocket)
+    if path.suffix != ".rocket" and path.parent == Path("."):
+        path = ROCKETS_DIR / f"{rocket}.rocket"
+    return path.resolve()
+
+
+def run(exe, stop_at_s, plant_params=None, servo_signs=None, rocket=None):
+    """Run zephyr.exe in simulated time and return the parsed log. rocket
+    is a design file path or name (see rocket_path); None flies the plant's
+    built-in design."""
     cmd = [str(exe), "--no-rt", f"--stop_at={stop_at_s}"]
+    if rocket is not None:
+        cmd.append(f"--rocket={rocket_path(rocket)}")
     if plant_params:
         cmd.append(
             "--plant-params="
@@ -256,6 +279,11 @@ def main(argv=None):
     p_run.add_argument(
         "--plant-param", type=_key_value, action="append", default=[]
     )
+    p_run.add_argument(
+        "--rocket",
+        help="design: a name in simulation/rockets or a .rocket file path "
+        "(rocket plant only; default: the built-in viikate_v1)",
+    )
     p_run.add_argument("--servo-signs", type=_signs)
     p_run.add_argument("--csv", type=Path, help="write the SIM rows here")
     p_run.add_argument("--no-build", action="store_true")
@@ -275,7 +303,11 @@ def main(argv=None):
     if args.command == "run":
         exe = exe_path(args.plant) if args.no_build else build(args.plant)
         result = run(
-            exe, args.stop_at, dict(args.plant_param), args.servo_signs
+            exe,
+            args.stop_at,
+            dict(args.plant_param),
+            args.servo_signs,
+            args.rocket,
         )
         if args.csv:
             result.write_csv(args.csv)

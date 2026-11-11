@@ -30,6 +30,12 @@ CMDS = ["cmd0_deg", "cmd1_deg", "cmd2_deg", "cmd3_deg"]
 
 
 class SmokeTest(unittest.TestCase):
+    def test_toy_rejects_rocket_file(self):
+        v1 = sil.REPO_DIR / "simulation" / "rockets" / "viikate_v1.rocket"
+        with self.assertRaises(sil.SilError) as ctx:
+            sil.run(EXE, 1, rocket=v1)
+        self.assertIn("toy plant has no design file", str(ctx.exception))
+
     def test_runs_to_stop_time(self):
         result = sil.run(EXE, 3)
         self.assertEqual(result.plant, "toy_roll_plant")
