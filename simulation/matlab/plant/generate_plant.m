@@ -7,7 +7,9 @@ function generate_plant()
 %   *.c, *.h     viikate_rocket generated with Embedded Coder, plus the
 %                MathWorks support headers it includes (from packNGo)
 %   reference/   a scripted fin-command scenario simulated in Simulink, which
-%                code/sim/tests/test_replay.py replays through the generated C
+%                code/sim/tests/test_replay.py replays through the generated C;
+%                reference/perturbed/ is the same scenario flown with
+%                simulation/rockets/test/perturbed.rocket
 %   PROVENANCE   SHA-256 of the inputs and of every file above;
 %                code/sim/tools/check_provenance.py fails when an input
 %                changed without regenerating or an output is missing or edited
@@ -27,6 +29,8 @@ inputs = {
     fullfile('simulation', 'matlab', 'plant', 'read_rocket_design.m')
     fullfile('simulation', 'rockets', 'viikate_v1.rocket')
     fullfile('simulation', 'rockets', 'motors', 'viikate_v1.eng')
+    fullfile('simulation', 'rockets', 'test', 'perturbed.rocket')
+    fullfile('simulation', 'rockets', 'test', 'motors', 'perturbed.eng')
 };
 
 addpath(plantDir);
@@ -95,11 +99,24 @@ so = sim(in);
 write_output_csv(fullfile(refDir, 'output.csv'), so.yout);
 clear restoreParams
 
+% The same scenario with the perturbed test design: every design value
+% differs from v1, so the replay of this in C fails if a value is not live.
+pertDir = fullfile(refDir, 'perturbed');
+if ~exist(pertDir, 'dir'), mkdir(pertDir); end
+copyfile(fullfile(refDir, 'input.csv'), pertDir);
+copyfile(fullfile(refDir, 'params.txt'), pertDir);
+plant_parameters(fullfile(simDir, 'rockets', 'test', 'perturbed.rocket'));
+restoreParams = onCleanup(@() plant_parameters());
+evalin('base', sprintf('rp_ignition_time_s.Value = %.17g;', ignition));
+so = sim(in);
+write_output_csv(fullfile(pertDir, 'output.csv'), so.yout);
+clear restoreParams
+
 % --- Provenance ---------------------------------------------------------------
 % Inputs first, then every file written here, so a changed model and a
 % missing or hand-edited output are both caught.
 outputs = [dir(fullfile(outDir, '*.c')); dir(fullfile(outDir, '*.h')); ...
-    dir(fullfile(refDir, '*'))];
+    dir(fullfile(refDir, '**', '*'))];
 outputs = outputs(~[outputs.isdir]);
 relOut = arrayfun(@(f) fullfile('simulation', ...
     extractAfter(fullfile(f.folder, f.name), [simDir filesep])), outputs, ...
