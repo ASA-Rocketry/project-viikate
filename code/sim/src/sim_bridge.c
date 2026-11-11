@@ -7,14 +7,18 @@
  *   -> IMU sample + data-ready trigger, barometer reading
  *
  * Command line (append to zephyr.exe):
+ *   --rocket=FILE                              design file
+ *                                              (simulation/rockets/<name>.rocket),
+ *                                              loaded before --plant-params
  *   --plant-params=name=value[,name=value...]  scenario parameters
  *   --servo-signs=s0,s1,s2,s3                  +1/-1 per servo channel,
  *                                              mounting direction into the
  *                                              plant (default all +1)
  *
- * Log lines on stdout, every CONFIG_VIIKATE_SIM_LOG_PERIOD_MS:
+ * Log lines on stdout:
  *   SIMHDR,<plant name>,<interface version>,<column names...>
- *   SIM,<values...>
+ *   SIMROCKET,<design name>,<design file or built-in>   (plants with designs)
+ *   SIM,<values...>       every CONFIG_VIIKATE_SIM_LOG_PERIOD_MS
  *
  * The run stops early with:
  *   SIMEND,ground_impact   exit 0: the rocket is more than 1 m below the
@@ -22,7 +26,9 @@
  *   SIMERR,<reason>        exit 1: a plant output is not finite
  *                          (non_finite_output) or the plant reported an
  *                          error (its message). Nothing is published to the
- *                          firmware or logged from that step.
+ *                          firmware or logged from that step. A design file
+ *                          that does not load stops the run the same way,
+ *                          before SIMHDR.
  */
 
 #include <math.h>
@@ -69,6 +75,7 @@ static const struct servo_info servos[VIIKATE_PLANT_FIN_COUNT] = {
     SERVO_INFO(servo3),
 };
 
+static char *rocket_arg;
 static char *plant_params_arg;
 static char *servo_signs_arg;
 static double servo_sign[VIIKATE_PLANT_FIN_COUNT] = {1.0, 1.0, 1.0, 1.0};
@@ -81,6 +88,13 @@ static uint32_t steps_per_log;
 
 static void add_cmdline_options(void) {
     static struct args_struct_t options[] = {
+        {
+            .option = "rocket",
+            .name = "file",
+            .type = 's',
+            .dest = (void *)&rocket_arg,
+            .descript = "Rocket design file, loaded before --plant-params",
+        },
         {
             .option = "plant-params",
             .name = "name=value,...",
@@ -221,6 +235,13 @@ static void log_header(void) {
         viikate_plant_name(),
         VIIKATE_PLANT_IF_VERSION
     );
+    if (viikate_plant_design_name() != NULL) {
+        printk(
+            "SIMROCKET,%s,%s\n",
+            viikate_plant_design_name(),
+            rocket_arg != NULL ? rocket_arg : "built-in"
+        );
+    }
 }
 
 static void log_row(void) {
@@ -328,6 +349,10 @@ static int sim_bridge_init(void) {
     const double step_s = viikate_plant_step_size_s();
     const uint32_t step_us = (uint32_t)lround(step_s * 1e6);
 
+    if (rocket_arg != NULL && viikate_plant_load_design(rocket_arg) != 0) {
+        printk("SIMERR,%s\n", viikate_plant_error());
+        posix_exit(1);
+    }
     if (plant_params_arg != NULL) {
         apply_plant_params(plant_params_arg);
     }
