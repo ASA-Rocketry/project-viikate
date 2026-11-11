@@ -67,7 +67,7 @@ static const struct {
     /* Single-number design keys, with the design file's rules */
     {"burn_time_s", &rp_burn_time_s, 1.0, NULL, RANGE_POSITIVE},
     {"mass_full_kg", &rp_mass_full_kg, 1.0, NULL, RANGE_POSITIVE},
-    {"mass_fuel_kg", &rp_mass_fuel_kg, 1.0, NULL, RANGE_NON_NEGATIVE},
+    {"mass_fuel_kg", &rp_mass_fuel_kg, 1.0, NULL, RANGE_POSITIVE},
     {"length_m", &rp_length_m, 1.0, NULL, RANGE_POSITIVE},
     {"frontal_area_m2", &rp_frontal_area_m2, 1.0, NULL, RANGE_POSITIVE},
     {"cd0", &rp_cd0, 1.0, NULL, RANGE_NON_NEGATIVE},

@@ -17,7 +17,7 @@ THRUST_POINTS = 128
 KEYS = [
     ("burn_time_s", 1, "positive", True),
     ("mass_full_kg", 1, "positive", False),
-    ("mass_fuel_kg", 1, "non_negative", False),
+    ("mass_fuel_kg", 1, "positive", False),
     ("inertia_full_kgm2", 3, "any", False),
     ("inertia_empty_kgm2", 3, "any", False),
     ("inertia_full_products_kgm2", 3, "any", True),

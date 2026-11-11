@@ -23,15 +23,15 @@ typedef struct {
     int count;
     rule_t rule;
     int optional;
-} key_t;
+} design_key_t;
 
 #define FIELD(m) offsetof(struct rocket_design, m)
 
 /* Numeric keys in the order of the key table (README.md). */
-static const key_t keys[] = {
+static const design_key_t keys[] = {
     {"burn_time_s", FIELD(burn_time_s), 1, RULE_POSITIVE, 1},
     {"mass_full_kg", FIELD(mass_full_kg), 1, RULE_POSITIVE, 0},
-    {"mass_fuel_kg", FIELD(mass_fuel_kg), 1, RULE_NON_NEGATIVE, 0},
+    {"mass_fuel_kg", FIELD(mass_fuel_kg), 1, RULE_POSITIVE, 0},
     {"inertia_full_kgm2", FIELD(inertia_full_kgm2), 3, RULE_ANY, 0},
     {"inertia_empty_kgm2", FIELD(inertia_empty_kgm2), 3, RULE_ANY, 0},
     {"inertia_full_products_kgm2",
