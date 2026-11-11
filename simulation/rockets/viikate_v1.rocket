@@ -1,0 +1,31 @@
+# Viikate v1: the values of simulation/matlab/closedModel/closedparameters.m,
+# which the frozen closedmodel.slx flies. This is the baseline design and an
+# input of simulation/plant_codegen/PROVENANCE: changing it means
+# regenerating the plant. A new iteration is a new file.
+# Keys, units and signs: simulation/rockets/README.md.
+
+name = viikate_v1
+motor = motors/viikate_v1.eng
+# closedModel cuts thrust at 1.0 s; its curve ends at 1.001 s.
+burn_time_s = 1.0
+
+mass_full_kg = 1.352
+mass_fuel_kg = 0.063
+inertia_full_kgm2 = 0.0027, 0.177, 0.177
+inertia_empty_kgm2 = 0.0027, 0.1655, 0.1655
+length_m = 1.27
+frontal_area_m2 = 0.00442
+cd0 = 0.635
+cn_alpha = 20
+cp_aft_of_cg_m = 0.346
+cmq = -40
+cnr = -40
+clp = -0.3
+roll_ref_length_m = 0.14
+canard_area_m2 = 0.0016875
+canard_cl_alpha = 1.975
+canard_fwd_of_cg_m = 0.4689
+# 0.075/2 + 0.03415*0.65: half body diameter plus 65% of the canard span
+canard_lift_radius_m = 0.0596975
+servo_tau_s = 0.05
+servo_rate_limit_dps = 600

@@ -1,0 +1,51 @@
+/*
+ * Devicetree for running code/app on native_sim. Used instead of
+ * code/app/app.overlay (Teensy hardware). Provides the node labels the
+ * firmware uses (imu, barometer, servo0..3), backed by simulated devices.
+ * Servo pulse limits match app.overlay.
+ */
+
+#include <zephyr/dt-bindings/pwm/pwm.h>
+
+/ {
+    simpwm: sim_pwm {
+        compatible = "viikate,sim-pwm";
+        #pwm-cells = <3>;
+    };
+
+    imu: sim_imu {
+        compatible = "viikate,sim-imu";
+    };
+
+    barometer: sim_baro {
+        compatible = "viikate,sim-baro";
+    };
+
+    servo0: servo0 {
+        compatible = "pwm-servo";
+        pwms = <&simpwm 0 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo1: servo1 {
+        compatible = "pwm-servo";
+        pwms = <&simpwm 1 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo2: servo2 {
+        compatible = "pwm-servo";
+        pwms = <&simpwm 2 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+
+    servo3: servo3 {
+        compatible = "pwm-servo";
+        pwms = <&simpwm 3 PWM_MSEC(20) PWM_POLARITY_NORMAL>;
+        min-pulse = <PWM_USEC(400)>;
+        max-pulse = <PWM_USEC(2400)>;
+    };
+};

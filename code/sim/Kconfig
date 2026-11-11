@@ -1,0 +1,35 @@
+config VIIKATE_SIM
+	bool "Viikate software-in-the-loop simulation"
+	default y if BOARD_NATIVE_SIM
+	depends on ARCH_POSIX
+	select SENSOR
+	select PWM
+	help
+	  Simulated IMU, barometer and PWM devices driven by a plant model,
+	  so the unmodified flight firmware can run on native_sim.
+
+if VIIKATE_SIM
+
+choice VIIKATE_SIM_PLANT
+	prompt "Plant model"
+	default VIIKATE_SIM_PLANT_ROCKET
+
+config VIIKATE_SIM_PLANT_TOY
+	bool "Toy roll plant"
+	help
+	  One-axis roll plant on a test stand in constant airflow
+	  (plant/toy_roll_plant.c). Fast, for driver and bridge tests.
+
+config VIIKATE_SIM_PLANT_ROCKET
+	bool "Rocket plant generated from Simulink"
+	help
+	  Full 6DOF rocket from simulation/matlab/plant/viikate_rocket.slx,
+	  generated to C in simulation/plant_codegen.
+
+endchoice
+
+config VIIKATE_SIM_LOG_PERIOD_MS
+	int "Period of SIM log lines on stdout (ms)"
+	default 10
+
+endif

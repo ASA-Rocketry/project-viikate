@@ -19,9 +19,13 @@ ninja.*
 # -------------------------------------------------------------------
 .west/
 zephyr/
+# but not the SIL module's Zephyr metadata
+!sim/zephyr/
 modules/
 bootloader/
 tools/
+# but not the SIL helper scripts
+!sim/tools/
 code/app/build
 code/build
 build/
