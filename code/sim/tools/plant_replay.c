@@ -4,14 +4,19 @@
  * code; used by code/sim/tests/test_replay.py and test_flight.py.
  *
  *   plant_replay (--input FILE | --zero-input) --duration SECONDS
- *                [--period-ms N] [name=value ...]
+ *                [--period-ms N] [--rocket FILE] [name=value ...]
+ *   plant_replay --rocket FILE --print-design
  *
  * --input FILE: CSV with header t_s,fin0_rad,fin1_rad,fin2_rad,fin3_rad; each
  * row applies from step round(t_s / step size) until the next row. Steps
  * start at 1: init already ran the step at t = 0 with zero commands.
  *
- * Exit codes: 0 done, 1 usage or input file error, 2 bad parameter,
- * 3 plant error or non-finite output.
+ * --rocket FILE: design file (simulation/rockets/<name>.rocket), loaded before
+ * every name=value parameter wherever it appears on the command line.
+ * --print-design: print the loaded design in canonical form and exit.
+ *
+ * Exit codes: 0 done, 1 usage or input file error, 2 bad parameter or
+ * design file, 3 plant error or non-finite output.
  */
 
 #include <errno.h>
@@ -20,6 +25,8 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "rocket_design.h"
+#include "rocket_plant.h"
 #include "viikate_plant.h"
 
 #define MAX_INPUT_ROWS 4096
@@ -36,7 +43,8 @@ static void usage(void) {
     fprintf(
         stderr,
         "usage: plant_replay (--input FILE | --zero-input) --duration SECONDS"
-        " [--period-ms N] [name=value ...]\n"
+        " [--period-ms N] [--rocket FILE] [name=value ...]\n"
+        "       plant_replay --rocket FILE --print-design\n"
     );
     exit(1);
 }
@@ -213,7 +221,14 @@ int main(int argc, char **argv) {
     viikate_plant_inputs_t in = {0};
     viikate_plant_outputs_t out;
     size_t next_row = 0;
+    const char *rocket_path = NULL;
+    int print_design = 0;
+    char **params = calloc((size_t)argc, sizeof(*params));
+    int param_count = 0;
 
+    if (params == NULL) {
+        return 1;
+    }
     for (int i = 1; i < argc; i++) {
         if (strcmp(argv[i], "--input") == 0 && i + 1 < argc) {
             input_path = argv[++i];
@@ -223,12 +238,37 @@ int main(int argc, char **argv) {
             duration_s = parse_number(argv[++i], "--duration");
         } else if (strcmp(argv[i], "--period-ms") == 0 && i + 1 < argc) {
             period_ms = lround(parse_number(argv[++i], "--period-ms"));
+        } else if (strcmp(argv[i], "--rocket") == 0 && i + 1 < argc) {
+            rocket_path = argv[++i];
+        } else if (strcmp(argv[i], "--print-design") == 0) {
+            print_design = 1;
         } else if (strncmp(argv[i], "--", 2) == 0) {
             usage();
         } else {
-            apply_param(argv[i]);
+            params[param_count++] = argv[i];
         }
     }
+    if (rocket_path != NULL && viikate_plant_load_design(rocket_path) != 0) {
+        fprintf(stderr, "plant_replay: %s\n", viikate_plant_error());
+        return 2;
+    }
+    if (print_design) {
+        static char text[65536];
+
+        if (rocket_path == NULL) {
+            usage();
+        }
+        if (rocket_design_format(rocket_plant_design(), text, sizeof(text))
+            != 0) {
+            return 1;
+        }
+        fputs(text, stdout);
+        return 0;
+    }
+    for (int i = 0; i < param_count; i++) {
+        apply_param(params[i]);
+    }
+    free(params);
     if ((input_path == NULL) == !zero_input || duration_s < 0.0
         || period_ms <= 0) {
         usage();

@@ -7,9 +7,9 @@
  *
  * Code generated for Simulink model 'viikate_rocket'.
  *
- * Model version                  : 5.3
+ * Model version                  : 5.4
  * Simulink Coder version         : 26.2 (R2026b) 22-May-2026
- * C/C++ source code generated on : Wed Nov 11 15:32:51 2026
+ * C/C++ source code generated on : Wed Nov 11 15:55:26 2026
  *
  * Target selection: ert.tlc
  * Embedded hardware selection: Intel->x86-64 (Linux 64)
@@ -252,13 +252,6 @@ typedef struct {
    * Referenced by: '<S85>/Lift directions'
    */
   double Liftdirections_Value[12];
-
-  /* Pooled Parameter (Expression: matrix)
-   * Referenced by:
-   *   '<S81>/[0]'
-   *   '<S81>/[1]'
-   */
-  double pooled7[18];
 } ConstP_viikate_rocket_T;
 
 /* External inputs (root inport signals with default storage) */
@@ -410,10 +403,14 @@ extern double rp_ignition_time_s;      /* Variable: rp_ignition_time_s
                                         * Referenced by: '<Root>/ignition_time'
                                         */
 extern double rp_inertia_empty_kgm2[9];/* Variable: rp_inertia_empty_kgm2
-                                        * Referenced by: '<S79>/slope'
+                                        * Referenced by:
+                                        *   '<S79>/slope'
+                                        *   '<S81>/[0]'
                                         */
 extern double rp_inertia_full_kgm2[9]; /* Variable: rp_inertia_full_kgm2
-                                        * Referenced by: '<S79>/slope'
+                                        * Referenced by:
+                                        *   '<S79>/slope'
+                                        *   '<S81>/[1]'
                                         */
 extern double rp_length_m;             /* Variable: rp_length_m
                                         * Referenced by:
@@ -474,6 +471,8 @@ extern RT_MODEL_viikate_rocket_T *const viikate_rocket_M;
 /*-
  * These blocks were eliminated from the model due to optimizations:
  *
+ * Block '<S81>/Sum' : Unused code path elimination
+ * Block '<S81>/offset for upper index 1' : Unused code path elimination
  * Block '<S18>/High Gain Quaternion Normalization' : Eliminated nontunable gain of 1
  * Block '<S11>/Unit Conversion' : Eliminated nontunable gain of 1
  * Block '<S12>/Unit Conversion' : Eliminated nontunable gain of 1
