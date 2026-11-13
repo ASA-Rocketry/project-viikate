@@ -1,0 +1,17 @@
+common:
+  tags: hil
+  platform_allow:
+    - teensy41
+  integration_platforms:
+    - teensy41
+  # Needs the physical rig; run with code/tests/hil/run.sh.
+
+tests:
+  viikate.hil.boot:
+    harness: pytest
+    harness_config:
+      pytest_root:
+        - "pytest/test_boot.py"
+      # Flash and power-cycle once, then run every test against that boot.
+      pytest_dut_scope: module
+    timeout: 180
