@@ -15,3 +15,13 @@ tests:
       # Flash and power-cycle once, then run every test against that boot.
       pytest_dut_scope: module
     timeout: 180
+
+  viikate.hil.log:
+    # The flight image plus a shell, to read the log files back.
+    extra_args: EXTRA_CONF_FILE=shell.conf
+    harness: pytest
+    harness_config:
+      pytest_root:
+        - "pytest/test_log.py"
+      pytest_dut_scope: module
+    timeout: 600

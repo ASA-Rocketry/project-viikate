@@ -13,3 +13,8 @@ find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(viikate_hil)
 
 include(${VIIKATE_APP}/sources.cmake)
+
+# Log test only (shell.conf): shell commands that drive the logger.
+if(CONFIG_SHELL)
+    target_sources(app PRIVATE src/log_shell.cpp)
+endif()
