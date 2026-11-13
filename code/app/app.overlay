@@ -141,3 +141,14 @@
     nxp,reload = "immediate";
 };
 
+
+/* The LPI2C pins are open drain. Without a sensor board (and its pull-ups) the
+ * bus floats low and the BME280 probe waits forever, so boot never finishes.
+ * Weak internal pull-ups make the probe fail cleanly instead; external
+ * pull-ups on the real board still dominate. */
+&pinmux_lpi2c1 {
+    group0 {
+        bias-pull-up;
+        bias-pull-up-value = "22k";
+    };
+};

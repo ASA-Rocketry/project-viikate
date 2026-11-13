@@ -102,6 +102,12 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
     (void)arg2;
     (void)arg3;
 
+    // barometer_init() may retry the driver later; until then there is
+    // nothing to read, and failing every millisecond floods the console.
+    while (!device_is_ready(barometer)) {
+        k_msleep(100);
+    }
+
     while (1) {
         uint64_t start_time = k_uptime_get();
 
