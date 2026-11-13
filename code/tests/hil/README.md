@@ -32,15 +32,27 @@ cold boot, then checks:
 2. It stays enumerated with the same device number for 10 s, so there is no
    reset loop, and the console shows no Zephyr fatal error.
 
+## What the log test checks
+
+`viikate.hil.log` builds the same application plus a Zephyr shell on the USB
+console (`shell.conf`, test only). The test types commands into it: `fs cat`
+reads the log files back off the board's flash, and `vlog fill`
+(`src/log_shell.cpp`) makes the logger write many numbered lines.
+
+1. The barometer and imu status lines `main()` logs on boot are in
+   `/lfs/log.txt`. After USB power is cut and restored, every earlier line is
+   still there, followed by exactly the new boot's two lines.
+2. Writing one and a half files' worth of lines rotates the log: `log.1.txt`
+   appears, no file exceeds the size limit, no more than the configured number
+   of files is kept, and across a power cut every line arrives exactly once, in
+   order and unsplit.
+
 ## Limitations
 
 - **Power cycling cannot enter the bootloader.** On power-up the Teensy always
-  boots its flashed image. Flashing needs the board in HalfKay, which happens
-  in one of three ways: it is already there, it runs Teensyduino firmware that
-  accepts the 134-baud reboot, or someone presses PROGRAM. Zephyr images do not
-  implement the 134-baud reboot. After one viikate image is flashed, the next
-  run needs PROGRAM until that is solved, for example by wiring a Pi GPIO to
-  the PROGRAM pad.
+  boots its flashed image. `rig.sh flash` gets it into HalfKay with the
+  134-baud reboot, which viikate supports (`code/app/src/bootloader.c`). If
+  the running image is hung or predates that, someone has to press PROGRAM.
 - **Power cycling switches every USB port.** The Pi 5 gangs VBUS: per-port
   `uhubctl` only disconnects data while the board stays powered. `rig.sh
   power-cycle` therefore switches every hub off, which also resets anything

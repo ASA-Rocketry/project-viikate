@@ -13,7 +13,8 @@
 #   VIIKATE_HIL_HUBS            uhubctl hub locations to switch (default "1 2 3 4")
 #   VIIKATE_HIL_POWER_OFF_S     seconds to keep USB power off (default 2)
 #   VIIKATE_HIL_BOOTLOADER_S    seconds to wait for the Teensy bootloader (default 30)
-#   VIIKATE_HIL_USB_ID          DUT console VID:PID for `serial` (default 2fe3:0004)
+#   VIIKATE_HIL_USB_ID          DUT console VID:PID for `serial`, and for the
+#                               134-baud reboot in `flash` (default 2fe3:0004)
 #   VIIKATE_HIL_SERIAL_WAIT_S   seconds `serial` waits for the console (default 30)
 set -euo pipefail
 
@@ -54,6 +55,7 @@ wait_usb() {
 
 cmd_flash() {
     local build_dir=$1 hex wait_s=${VIIKATE_HIL_BOOTLOADER_S:-30} dev attempt
+    local console_id=${VIIKATE_HIL_USB_ID:-2fe3:0004}
     [ -n "$build_dir" ] || die "flash needs --build-dir"
     hex=$build_dir/zephyr/zephyr.hex
     [ -f "$hex" ] || die "missing $hex"
@@ -62,6 +64,10 @@ cmd_flash() {
         log "Teensy already in bootloader"
     elif dev=$(usb_lookup "$TEENSY_VID" "$TEENSYDUINO_SERIAL_PID"); then
         log "soft-rebooting Teensyduino serial ${dev#* } into bootloader"
+        stty -F "${dev#* }" 134 || true
+    elif dev=$(usb_lookup "${console_id%:*}" "${console_id#*:}") && [ -n "${dev#* }" ]; then
+        # viikate (src/bootloader.c) also reboots into HalfKay at 134 baud.
+        log "soft-rebooting viikate console ${dev#* } into bootloader"
         stty -F "${dev#* }" 134 || true
     else
         # USB power cycling cannot enter HalfKay: the Teensy always boots its
