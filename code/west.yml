@@ -12,6 +12,8 @@ manifest:
           - cmsis_6
           - hal_nxp
           - hal_st
+          # Log file system.
+          - littlefs
 
     - name: cmsis-dsp
       url: https://github.com/ARM-software/CMSIS-DSP
