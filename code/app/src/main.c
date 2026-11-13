@@ -12,6 +12,7 @@
 #include "guidance/filters.h"
 #include "guidance/kalman.h"
 #include "guidance/pid.h"
+#include "logger.h"
 #include "math/linmath.h"
 #include "sensors.h"
 #include "servo.h"
@@ -138,6 +139,8 @@ LINMATH_H_FUNC float quat_get_roll(quat const q) {
 }
 
 int main(void) {
+    viikate_log("viikate: main started");
+
     barometer_init(barometer);
     imu_init(imu);
 
