@@ -37,7 +37,7 @@ cold boot, then checks:
 `viikate.hil.log` builds the same application plus a Zephyr shell on the USB
 console (`shell.conf`, test only). The test types commands into it: `fs cat`
 reads the log files back off the board's flash, and `vlog fill`
-(`src/log_shell.cpp`) makes the logger write many numbered lines.
+(`src/log_shell.c`) makes the logger write many numbered lines.
 
 1. The barometer and imu status lines `main()` logs on boot are in
    `/lfs/log.txt`. After USB power is cut and restored, every earlier line is

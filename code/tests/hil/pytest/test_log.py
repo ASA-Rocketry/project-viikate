@@ -21,9 +21,9 @@ HERE = Path(__file__).resolve().parent
 RIG = HERE.parent / "scripts" / "rig.sh"
 LOGGER_H = HERE.parents[2] / "app" / "include" / "logger.h"
 
-# Lines main() logs on every boot.
-STATUS = re.compile(r"(barometer|imu)\.\.\. (ok|failed)")
-# Must match FILL_PADDING in src/log_shell.cpp.
+# Lines main() logs on every boot, after the uptime in ms and the level.
+STATUS = re.compile(r"\d+ INFO (barometer|imu)\.\.\. (ok|failed)")
+# Must match FILL_PADDING in src/log_shell.c.
 FILL_PADDING = "0123456789abcdefghijklmnopqrstuvwxyz"
 
 
@@ -123,22 +123,26 @@ def test_log_survives_power_cut(dut: DeviceAdapter):
     assert len(new) == 2 and all(STATUS.fullmatch(line) for line in new), (
         f"expected this boot's barometer and imu lines after the old log, got {new}"
     )
-    assert new[0].startswith("barometer") and new[1].startswith("imu")
+    assert [STATUS.fullmatch(line).group(1) for line in new] == ["barometer", "imu"]
 
 
 def test_log_rotates(dut: DeviceAdapter):
     shell = connect_shell(dut)
     tag = secrets.token_hex(3)
-    fill = re.compile(rf"fill {tag} (\d+) {FILL_PADDING}")
-    line_size = len(f"fill {tag} 0000 {FILL_PADDING}\n")
+    fill = re.compile(rf"\d+ INFO fill {tag} (\d+) {FILL_PADDING}")
+    # The uptime prefix stays under 8 digits for the length of a run.
+    line_size = len(f"0000000 INFO fill {tag} 0000 {FILL_PADDING}\n")
     # One and a half files' worth: forces at least one rotation, and with the
     # rotated files kept, every line of this run must still be on the board.
     count = MAX_SIZE * 3 // 2 // line_size
-    last = f"fill {tag} {count - 1} {FILL_PADDING}"
+    last = re.compile(rf"\d+ INFO fill {tag} {count - 1} {FILL_PADDING}")
+
+    def has_last(lines: list[str]) -> bool:
+        return any(last.fullmatch(line) for line in lines)
 
     shell.exec_command(f"vlog fill {tag} {count}", timeout=300, print_output=False)
-    current = poll(lambda: read_file(shell, LOG_FILE) or [], lambda lines: last in lines, 120)
-    assert last in current, "the last filled line never reached the log file"
+    current = poll(lambda: read_file(shell, LOG_FILE) or [], has_last, 120)
+    assert has_last(current), "the last filled line never reached the log file"
 
     # Rotated files must survive a power cut too.
     shell = power_cycle(dut)

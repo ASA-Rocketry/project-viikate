@@ -140,9 +140,9 @@ LINMATH_H_FUNC float quat_get_roll(quat const q) {
 
 int main(void) {
     barometer_init(barometer);
-    viikate_log("barometer...", device_is_ready(barometer) ? "ok" : "failed");
+    log_info("barometer...", device_is_ready(barometer) ? "ok" : "failed");
     imu_init(imu);
-    viikate_log("imu...", device_is_ready(imu) ? "ok" : "failed");
+    log_info("imu...", device_is_ready(imu) ? "ok" : "failed");
 
     imu_sample_t imu_sample;
     barometer_sample_t baro_sample;
