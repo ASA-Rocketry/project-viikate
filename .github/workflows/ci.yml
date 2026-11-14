@@ -36,3 +36,26 @@ jobs:
               pre-commit run --hook-stage commit-msg --commit-msg-file /tmp/commit-msg
             fi
           '
+
+  sil:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Nix
+        uses: cachix/install-nix-action@v31
+        with:
+          github_access_token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Run SIL tests
+        run: |
+          nix develop --command bash -c '
+            set -e
+            cd code
+            west init -l .
+            west update --narrow --fetch-opt=--depth=1
+            west zephyr-export
+            cd ..
+            python3 code/sim/sil.py test
+          '
