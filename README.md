@@ -25,6 +25,8 @@ project-viikate/
 
 ## Software
 
+- [SIL simulation guide](./docs/simulation.md) — run the rocket/toy plants with or without visualization, and their parameters.
+
 ## Style Choices
 
 - For details on how to style your code refer to [RocketStyle](./code/README.md).
