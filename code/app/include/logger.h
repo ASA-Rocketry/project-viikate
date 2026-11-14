@@ -26,7 +26,11 @@
  * and appends it to log.txt on the microSD card (VIIKATE_LOG_SD_DIR). CRIT
  * lines are also appended to crit.txt on the onboard flash (VIIKATE_LOG_DIR),
  * so the most important ones survive a lost or broken card. If one of them
- * fails, logging carries on to the other and the console. The caller never
+ * fails, logging carries on to the other and the console. The card is mounted
+ * by its own thread, which tries again every few seconds while it is missing
+ * or after it failed, so a card inserted late or reseated is picked up again;
+ * lines logged while it is down only reach the console and, if CRIT, the
+ * flash. FAT and exFAT cards both work. The caller never
  * waits on the console or storage, so logging is safe from control loops and
  * ISRs. If the buffer is full the line is dropped, the call evaluates to false
  * and the flush thread reports how many lines were lost.
