@@ -16,5 +16,5 @@ include(${VIIKATE_APP}/sources.cmake)
 
 # Log test only (shell.conf): shell commands that drive the logger.
 if(CONFIG_SHELL)
-    target_sources(app PRIVATE src/log_shell.cpp)
+    target_sources(app PRIVATE src/log_shell.c)
 endif()
