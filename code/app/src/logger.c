@@ -32,7 +32,9 @@ static struct k_spinlock lock;
 static uint32_t dropped;  // guarded by lock
 
 static void flush_thread(void *arg1, void *arg2, void *arg3);
+#ifdef CONFIG_FILE_SYSTEM
 static void mount_thread(void *arg1, void *arg2, void *arg3);
+#endif
 
 RING_BUF_DECLARE(viikate_log_buffer, BUFFER_SIZE);
 K_SEM_DEFINE(viikate_log_pending, 0, 1);
@@ -47,6 +49,7 @@ K_THREAD_DEFINE(
     0,
     0
 );
+#ifdef CONFIG_FILE_SYSTEM
 // Given by the mount thread after its first try.
 K_SEM_DEFINE(viikate_log_sd_tried, 0, 1);
 K_THREAD_DEFINE(
@@ -60,6 +63,7 @@ K_THREAD_DEFINE(
     0,
     0
 );
+#endif
 
 // Formatting. Runs on the caller's stack and never blocks.
 
@@ -143,6 +147,9 @@ static void append_arg(line_t *line, const viikate_log_arg_t *arg) {
 
 // Output. Runs in the flush thread only.
 
+// Storage. Without file systems (native_sim) lines only go to the console.
+#ifdef CONFIG_FILE_SYSTEM
+
 FS_FSTAB_DECLARE_ENTRY(DT_NODELABEL(sd));
 
 // A log file and its rotated copies. When the live file would grow past
@@ -185,7 +192,7 @@ static target_t crit_log = {
     .count = VIIKATE_LOG_CRIT_FILE_COUNT,
 };
 
-#define PATH_LEN 32
+    #define PATH_LEN 32
 
 // index 0 is the live file, name.txt; 1 and up are rotated copies.
 static void log_path(const target_t *t, int index, char out[PATH_LEN]) {
@@ -301,14 +308,79 @@ static void sync_target(target_t *t) {
     }
 }
 
-// text is one line including its newline.
+// Mounts the SD card, so the flush thread never waits on a card that does
+// not answer: with no card detect pin, a missing card only shows up after the
+// driver's timeouts.
+static void mount_thread(void *arg1, void *arg2, void *arg3) {
+    struct fs_mount_t *mount = &FS_FSTAB_ENTRY(DT_NODELABEL(sd));
+    int last_rc = 0;
+    ARG_UNUSED(arg1);
+    ARG_UNUSED(arg2);
+    ARG_UNUSED(arg3);
+
+    for (bool first = true;; first = false) {
+        if (atomic_get(&sd_state) == SD_BROKEN) {
+            // Errors are ignored: the card may be gone already.
+            (void)fs_unmount(mount);
+            atomic_set(&sd_state, SD_DOWN);
+        }
+        if (atomic_get(&sd_state) == SD_DOWN) {
+            int rc = fs_mount(mount);
+            if (rc == 0) {
+                last_rc = 0;
+                atomic_set(&sd_state, SD_UP);
+                log_info("log: SD card mounted");
+            } else if (rc != last_rc) {
+                // Only once per new error, not on every retry.
+                last_rc = rc;
+                log_warn("log: no SD card, error", rc, "retrying");
+            }
+        }
+        if (first) {
+            k_sem_give(&viikate_log_sd_tried);
+        }
+        k_sleep(MOUNT_RETRY);
+    }
+}
+
 static void
-output_line(viikate_log_level_t level, const char *text, size_t len) {
-    printk("%.*s", (int)len, text);
+store_line(viikate_log_level_t level, const char *text, size_t len) {
     write_target(&sd_log, text, len);
     if (level == VIIKATE_LOG_CRIT) {
         write_target(&crit_log, text, len);
     }
+}
+
+static void sync_storage(void) {
+    sync_target(&sd_log);
+    sync_target(&crit_log);
+}
+
+// Waits a little for the card, so the boot lines reach it too.
+static void wait_for_storage(void) {
+    (void)k_sem_take(&viikate_log_sd_tried, MOUNT_RETRY);
+}
+
+#else
+
+static void
+store_line(viikate_log_level_t level, const char *text, size_t len) {
+    ARG_UNUSED(level);
+    ARG_UNUSED(text);
+    ARG_UNUSED(len);
+}
+
+static void sync_storage(void) {}
+
+static void wait_for_storage(void) {}
+
+#endif
+
+// text is one line including its newline.
+static void
+output_line(viikate_log_level_t level, const char *text, size_t len) {
+    printk("%.*s", (int)len, text);
+    store_line(level, text, len);
 }
 
 // In the buffer each line is preceded by one byte holding its level, which
@@ -345,49 +417,13 @@ static uint32_t take_dropped(void) {
     return n;
 }
 
-// Mounts the SD card, so the flush thread never waits on a card that does
-// not answer: with no card detect pin, a missing card only shows up after the
-// driver's timeouts.
-static void mount_thread(void *arg1, void *arg2, void *arg3) {
-    struct fs_mount_t *mount = &FS_FSTAB_ENTRY(DT_NODELABEL(sd));
-    int last_rc = 0;
-    ARG_UNUSED(arg1);
-    ARG_UNUSED(arg2);
-    ARG_UNUSED(arg3);
-
-    for (bool first = true;; first = false) {
-        if (atomic_get(&sd_state) == SD_BROKEN) {
-            // Errors are ignored: the card may be gone already.
-            (void)fs_unmount(mount);
-            atomic_set(&sd_state, SD_DOWN);
-        }
-        if (atomic_get(&sd_state) == SD_DOWN) {
-            int rc = fs_mount(mount);
-            if (rc == 0) {
-                last_rc = 0;
-                atomic_set(&sd_state, SD_UP);
-                log_info("log: SD card mounted");
-            } else if (rc != last_rc) {
-                // Only once per new error, not on every retry.
-                last_rc = rc;
-                log_warn("log: no SD card, error", rc, "retrying");
-            }
-        }
-        if (first) {
-            k_sem_give(&viikate_log_sd_tried);
-        }
-        k_sleep(MOUNT_RETRY);
-    }
-}
-
 static void flush_thread(void *arg1, void *arg2, void *arg3) {
     static char chunk[FLUSH_CHUNK];
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
 
-    // Waits a little for the card, so the boot lines reach it too.
-    (void)k_sem_take(&viikate_log_sd_tried, MOUNT_RETRY);
+    wait_for_storage();
 
     for (;;) {
         k_sem_take(&viikate_log_pending, K_FOREVER);
@@ -404,8 +440,7 @@ static void flush_thread(void *arg1, void *arg2, void *arg3) {
             output_line(VIIKATE_LOG_WARN, chunk, (size_t)len);
         }
 
-        sync_target(&sd_log);
-        sync_target(&crit_log);
+        sync_storage();
     }
 }
 

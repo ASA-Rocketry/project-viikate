@@ -6,11 +6,16 @@ target_include_directories(app PRIVATE ${VIIKATE_APP_DIR}/include)
 
 target_sources(app PRIVATE
     ${VIIKATE_APP_DIR}/src/main.c
-    ${VIIKATE_APP_DIR}/src/bootloader.c
     ${VIIKATE_APP_DIR}/src/logger.c
     ${VIIKATE_APP_DIR}/src/servo.c
     ${VIIKATE_APP_DIR}/src/sensors.c
     ${VIIKATE_APP_DIR}/src/guidance/kalman.c
     ${VIIKATE_APP_DIR}/src/guidance/filters.c
     ${VIIKATE_APP_DIR}/src/guidance/pid.c
+)
+
+# Reboot into the Teensy bootloader at 134 baud. Teensy only: native_sim (SIL)
+# has no such bootloader, and the bkpt instruction is ARM only.
+target_sources_ifdef(CONFIG_BOARD_TEENSY41 app PRIVATE
+    ${VIIKATE_APP_DIR}/src/bootloader.c
 )
