@@ -74,6 +74,22 @@ static const char *level_name(viikate_log_level_t level) {
     return "????";
 }
 
+// " [x, y, z]" for a vector, " [[a, b], [c, d]]" for a matrix (row-major).
+static void
+append_floats(line_t *line, const float *v, unsigned rows, unsigned cols) {
+    append(line, rows > 1 ? " [" : " ");
+    for (unsigned r = 0; r < rows; ++r) {
+        append(line, r > 0 ? ", [" : "[");
+        for (unsigned c = 0; c < cols; ++c) {
+            append(line, c > 0 ? ", %g" : "%g", (double)v[r * cols + c]);
+        }
+        append(line, "]");
+    }
+    if (rows > 1) {
+        append(line, "]");
+    }
+}
+
 static void append_arg(line_t *line, const viikate_log_arg_t *arg) {
     switch (arg->type) {
         case VIIKATE_LOG_STR:
@@ -96,6 +112,9 @@ static void append_arg(line_t *line, const viikate_log_arg_t *arg) {
             break;
         case VIIKATE_LOG_PTR:
             append(line, " %p", arg->as.p);
+            break;
+        case VIIKATE_LOG_FLOATS:
+            append_floats(line, arg->as.f.v, arg->as.f.rows, arg->as.f.cols);
             break;
     }
 }
