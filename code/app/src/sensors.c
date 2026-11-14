@@ -3,10 +3,10 @@
 #include <stdalign.h>
 #include <zephyr/drivers/sensor.h>
 
+#include "logger.h"
 #include "math/linmath.h"
 #include "zephyr/device.h"
 #include "zephyr/kernel.h"
-#include "zephyr/sys/printk.h"
 
 #define IMU_QUEUE_SIZE 64
 #define BAROMETER_QUEUE_SIZE 16
@@ -77,7 +77,7 @@ int imu_init(const struct device *imu) {
 
     ret = device_is_ready(imu);
     if (ret == 0) {
-        printk("IMU is not ready: %d!\n", ret);
+        log_crit("IMU is not ready");
         return ret;
     }
 
@@ -88,11 +88,11 @@ int imu_init(const struct device *imu) {
 
     ret = sensor_trigger_set(imu, &trig, imu_trigger_handler);
     if (ret != 0) {
-        printk("Trigger set for IMU failed: %d\n", ret);
+        log_crit("IMU trigger set failed:", ret);
         return ret;
     }
 
-    printk("IMU initialized successfuly\n");
+    log_info("IMU initialized");
 
     return 0;
 }
@@ -102,6 +102,10 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
     (void)arg2;
     (void)arg3;
 
+    // Failures are retried every millisecond: log when they start and when
+    // the barometer recovers, not every retry.
+    bool failing = false;
+
     while (1) {
         uint64_t start_time = k_uptime_get();
 
@@ -109,7 +113,10 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
 
         rc = sensor_sample_fetch(barometer);
         if (rc) {
-            printk("Barometer fetch failed: %d\n", rc);
+            if (!failing) {
+                log_warn("Barometer fetch failed:", rc);
+                failing = true;
+            }
             k_msleep(1);
             continue;
         }
@@ -123,9 +130,17 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
             &temperature
         );
         if (rc) {
-            printk("Barometer decode failed: %d\n", rc);
+            if (!failing) {
+                log_warn("Barometer decode failed:", rc);
+                failing = true;
+            }
             k_msleep(1);
             continue;
+        }
+
+        if (failing) {
+            log_info("Barometer recovered");
+            failing = false;
         }
 
         uint64_t elapsed = k_uptime_get() - start_time;
@@ -149,7 +164,7 @@ int barometer_init(const struct device *barometer) {
 
     ret = device_is_ready(barometer);
     if (ret == 0) {
-        printk("Barometer is not ready: %d!\n", ret);
+        log_warn("Barometer is not ready, retrying");
         k_msleep(10);
         device_init(barometer);
         ret = device_is_ready(barometer);
@@ -158,7 +173,7 @@ int barometer_init(const struct device *barometer) {
         return ret;
     }
 
-    printk("Barometer initialized successfuly\n");
+    log_info("Barometer initialized");
 
     return 0;
 }
