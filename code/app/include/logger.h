@@ -23,14 +23,19 @@
  *
  * A line is formatted in full before it is handed over, so it is never
  * flushed half written. A low priority thread then prints it to the console
- * and appends it to VIIKATE_LOG_FILE. The caller never waits on the console or
- * the flash, so logging is safe from control loops and ISRs. If the buffer is
- * full the line is dropped, the call evaluates to false and the flush thread
- * reports how many lines were lost.
+ * and appends it to log.txt on the microSD card (VIIKATE_LOG_SD_DIR). CRIT
+ * lines are also appended to crit.txt on the onboard flash (VIIKATE_LOG_DIR),
+ * so the most important ones survive a lost or broken card. If one of them
+ * fails, logging carries on to the other and the console. The caller never
+ * waits on the console or storage, so logging is safe from control loops and
+ * ISRs. If the buffer is full the line is dropped, the call evaluates to false
+ * and the flush thread reports how many lines were lost.
  *
- * When the log file would grow past VIIKATE_LOG_FILE_MAX_SIZE it is rotated:
+ * When log.txt would grow past VIIKATE_LOG_FILE_MAX_SIZE it is rotated:
  * log.txt becomes log.1.txt, log.1.txt becomes log.2.txt and so on. At most
- * VIIKATE_LOG_FILE_COUNT files are kept, the oldest one is deleted.
+ * VIIKATE_LOG_FILE_COUNT files are kept, the oldest one is deleted. crit.txt
+ * rotates the same way within its own, smaller limits, so the flash only ever
+ * holds the latest critical lines.
  */
 
 #include <stdbool.h>
@@ -39,9 +44,11 @@
 
 #define VIIKATE_LOG_MAX_LINE_LEN 200
 #define VIIKATE_LOG_DIR "/lfs"
-#define VIIKATE_LOG_FILE VIIKATE_LOG_DIR "/log.txt"
+#define VIIKATE_LOG_SD_DIR "/SD:"
 #define VIIKATE_LOG_FILE_MAX_SIZE (64 * 1024)
 #define VIIKATE_LOG_FILE_COUNT 4
+#define VIIKATE_LOG_CRIT_FILE_MAX_SIZE (16 * 1024)
+#define VIIKATE_LOG_CRIT_FILE_COUNT 2
 
 #define log_info(...) VIIKATE_LOG_(VIIKATE_LOG_INFO, __VA_ARGS__)
 #define log_warn(...) VIIKATE_LOG_(VIIKATE_LOG_WARN, __VA_ARGS__)
