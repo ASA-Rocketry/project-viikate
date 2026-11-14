@@ -3,6 +3,7 @@
 #include <errno.h>
 #include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
 #include <zephyr/fs/fs.h>
 #include <zephyr/kernel.h>
 #include <zephyr/spinlock.h>
@@ -12,9 +13,10 @@
 
 #define BUFFER_SIZE 4096
 #define LINE_CAPACITY VIIKATE_LOG_MAX_LINE_LEN
-// One full line plus its newline always fits in a flush.
-#define FLUSH_CHUNK (LINE_CAPACITY + 1)
-#define FLUSH_STACK_SIZE 2048
+// One full line, with its level tag and newline, always fits in a flush.
+#define FLUSH_CHUNK (1 + LINE_CAPACITY + 1)
+// FatFs and the SD card driver run on this thread too.
+#define FLUSH_STACK_SIZE 4096
 // Below every other application thread: logging never delays control.
 #define FLUSH_PRIORITY K_LOWEST_APPLICATION_THREAD_PRIO
 
@@ -121,104 +123,173 @@ static void append_arg(line_t *line, const viikate_log_arg_t *arg) {
 
 // Output. Runs in the flush thread only.
 
-static struct fs_file_t file;
-static bool file_open;
-static bool file_disabled;
-static size_t file_size;
+FS_FSTAB_DECLARE_ENTRY(DT_NODELABEL(sd));
 
-static void rotated_name(char out[32], int index) {
-    snprintk(out, 32, VIIKATE_LOG_DIR "/log.%d.txt", index);
+// A log file and its rotated copies. When the live file would grow past
+// max_size, name.txt becomes name.1.txt and so on, keeping count files: the
+// oldest lines are dropped, so the files act as a ring.
+typedef struct {
+    const char *dir;
+    const char *name;
+    size_t max_size;
+    int count;
+    // Mounted here on first use, or NULL if mounted at boot.
+    struct fs_mount_t *mount;
+
+    struct fs_file_t file;
+    bool open;
+    bool disabled;
+    size_t size;
+} target_t;
+
+// Every line, on the microSD card.
+static target_t sd_log = {
+    .dir = VIIKATE_LOG_SD_DIR,
+    .name = "log",
+    .max_size = VIIKATE_LOG_FILE_MAX_SIZE,
+    .count = VIIKATE_LOG_FILE_COUNT,
+    .mount = &FS_FSTAB_ENTRY(DT_NODELABEL(sd)),
+};
+
+// CRIT lines only, on the onboard flash: a small ring that survives a lost
+// or broken SD card without wearing out the flash with every line.
+static target_t crit_log = {
+    .dir = VIIKATE_LOG_DIR,
+    .name = "crit",
+    .max_size = VIIKATE_LOG_CRIT_FILE_MAX_SIZE,
+    .count = VIIKATE_LOG_CRIT_FILE_COUNT,
+};
+
+#define PATH_LEN 32
+
+// index 0 is the live file, name.txt; 1 and up are rotated copies.
+static void log_path(const target_t *t, int index, char out[PATH_LEN]) {
+    if (index == 0) {
+        snprintk(out, PATH_LEN, "%s/%s.txt", t->dir, t->name);
+    } else {
+        snprintk(out, PATH_LEN, "%s/%s.%d.txt", t->dir, t->name, index);
+    }
 }
 
-static int open_file(void) {
-    fs_file_t_init(&file);
-    int rc = fs_open(
-        &file,
-        VIIKATE_LOG_FILE,
-        FS_O_CREATE | FS_O_WRITE | FS_O_APPEND
-    );
+static int open_file(target_t *t) {
+    char path[PATH_LEN];
+    log_path(t, 0, path);
+
+    fs_file_t_init(&t->file);
+    int rc = fs_open(&t->file, path, FS_O_CREATE | FS_O_WRITE | FS_O_APPEND);
     if (rc != 0) {
         return rc;
     }
-    file_open = true;
+    t->open = true;
 
     struct fs_dirent entry;
-    rc = fs_stat(VIIKATE_LOG_FILE, &entry);
-    file_size = rc == 0 ? entry.size : 0;
+    rc = fs_stat(path, &entry);
+    t->size = rc == 0 ? entry.size : 0;
     return 0;
 }
 
-static int rotate(void) {
-    char from[32];
-    char to[32];
+static int rotate(target_t *t) {
+    char from[PATH_LEN];
+    char to[PATH_LEN];
 
-    fs_close(&file);
-    file_open = false;
+    fs_close(&t->file);
+    t->open = false;
 
-    rotated_name(to, VIIKATE_LOG_FILE_COUNT - 1);
+    log_path(t, t->count - 1, to);
     int rc = fs_unlink(to);
     if (rc != 0 && rc != -ENOENT) {
         return rc;
     }
-    for (int i = VIIKATE_LOG_FILE_COUNT - 2; i >= 1; --i) {
-        rotated_name(from, i);
-        rotated_name(to, i + 1);
+    for (int i = t->count - 2; i >= 0; --i) {
+        log_path(t, i, from);
+        log_path(t, i + 1, to);
         rc = fs_rename(from, to);
-        if (rc != 0 && rc != -ENOENT) {
+        if (rc != 0 && (rc != -ENOENT || i == 0)) {
             return rc;
         }
     }
-    rotated_name(to, 1);
-    rc = fs_rename(VIIKATE_LOG_FILE, to);
-    if (rc != 0) {
-        return rc;
-    }
-    return open_file();
+    return open_file(t);
 }
 
-static void disable_file(int rc) {
-    printk("log: %s unavailable (%d), console only\n", VIIKATE_LOG_FILE, rc);
-    if (file_open) {
-        fs_close(&file);
-        file_open = false;
+// A failed target is not retried; the console and the other target go on.
+static void disable_target(target_t *t, int rc) {
+    printk("log: %s/%s.txt unavailable (%d)\n", t->dir, t->name, rc);
+    if (t->open) {
+        fs_close(&t->file);
+        t->open = false;
     }
-    file_disabled = true;
+    t->disabled = true;
 }
 
-// text holds whole lines only, so a line never straddles two files.
-static void write_file(const char *text, size_t len) {
-    if (file_disabled) {
+// text is one whole line, so a line never straddles two files.
+static void write_target(target_t *t, const char *text, size_t len) {
+    if (t->disabled) {
         return;
     }
 
-    int rc = file_open ? 0 : open_file();
-    if (rc == 0 && file_size > 0
-        && file_size + len > VIIKATE_LOG_FILE_MAX_SIZE) {
-        rc = rotate();
+    int rc = 0;
+    if (!t->open) {
+        if (t->mount != NULL) {
+            rc = fs_mount(t->mount);
+            rc = rc == -EBUSY ? 0 : rc;  // already mounted
+        }
+        if (rc == 0) {
+            rc = open_file(t);
+        }
+    }
+    if (rc == 0 && t->size > 0 && t->size + len > t->max_size) {
+        rc = rotate(t);
     }
     if (rc == 0) {
-        ssize_t n = fs_write(&file, text, len);
+        ssize_t n = fs_write(&t->file, text, len);
         if (n < 0) {
             rc = (int)n;
         } else if ((size_t)n != len) {
             rc = -ENOSPC;
         } else {
-            file_size += len;
+            t->size += len;
         }
     }
     if (rc != 0) {
-        disable_file(rc);
+        disable_target(t, rc);
     }
 }
 
-static void output(const char *text, size_t len) {
-    printk("%s", text);
-    write_file(text, len);
+// Commits everything written so far, so it survives power loss.
+static void sync_target(target_t *t) {
+    if (t->open) {
+        int rc = fs_sync(&t->file);
+        if (rc != 0) {
+            disable_target(t, rc);
+        }
+    }
 }
 
-// Moves whole lines out of the buffer into out, NUL terminated.
+// text is one line including its newline.
+static void
+output_line(viikate_log_level_t level, const char *text, size_t len) {
+    printk("%.*s", (int)len, text);
+    write_target(&sd_log, text, len);
+    if (level == VIIKATE_LOG_CRIT) {
+        write_target(&crit_log, text, len);
+    }
+}
+
+// In the buffer each line is preceded by one byte holding its level, which
+// decides where it is written and is never printed.
+static void output(const char *chunk, size_t len) {
+    while (len > 0) {
+        const char *end = memchr(chunk, NEWLINE, len);
+        size_t line_len = (size_t)(end - chunk) + 1;
+        output_line((viikate_log_level_t)chunk[0], chunk + 1, line_len - 1);
+        chunk += line_len;
+        len -= line_len;
+    }
+}
+
+// Moves whole lines out of the buffer into out.
 // Returns the number of bytes taken, 0 when the buffer is empty.
-static uint32_t take_lines(char out[FLUSH_CHUNK + 1]) {
+static uint32_t take_lines(char out[FLUSH_CHUNK]) {
     k_spinlock_key_t key = k_spin_lock(&lock);
     uint32_t n =
         ring_buf_peek(&viikate_log_buffer, (uint8_t *)out, FLUSH_CHUNK);
@@ -227,8 +298,6 @@ static uint32_t take_lines(char out[FLUSH_CHUNK + 1]) {
     }
     ring_buf_get(&viikate_log_buffer, NULL, n);
     k_spin_unlock(&lock, key);
-
-    out[n] = '\0';
     return n;
 }
 
@@ -241,7 +310,7 @@ static uint32_t take_dropped(void) {
 }
 
 static void flush_thread(void *arg1, void *arg2, void *arg3) {
-    static char chunk[FLUSH_CHUNK + 1];
+    static char chunk[FLUSH_CHUNK];
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
@@ -258,16 +327,11 @@ static void flush_thread(void *arg1, void *arg2, void *arg3) {
         if (lost > 0) {
             int len =
                 snprintk(chunk, sizeof(chunk), "log: dropped %u lines\n", lost);
-            output(chunk, (size_t)len);
+            output_line(VIIKATE_LOG_WARN, chunk, (size_t)len);
         }
 
-        // Commit to flash, so everything flushed so far survives power loss.
-        if (file_open) {
-            int rc = fs_sync(&file);
-            if (rc != 0) {
-                disable_file(rc);
-            }
-        }
+        sync_target(&sd_log);
+        sync_target(&crit_log);
     }
 }
 
@@ -284,11 +348,13 @@ bool viikate_log_write(
         append_arg(&line, &args[i]);
     }
 
+    const uint8_t tag = (uint8_t)level;
     bool queued = false;
 
     k_spinlock_key_t key = k_spin_lock(&lock);
-    // All or nothing, so the console and the file never get half a line.
-    if (ring_buf_space_get(&viikate_log_buffer) >= line.len + 1) {
+    // All or nothing, so the console and the files never get half a line.
+    if (ring_buf_space_get(&viikate_log_buffer) >= 1 + line.len + 1) {
+        ring_buf_put(&viikate_log_buffer, &tag, 1);
         ring_buf_put(&viikate_log_buffer, (const uint8_t *)line.text, line.len);
         ring_buf_put(&viikate_log_buffer, (const uint8_t *)&NEWLINE, 1);
         queued = true;

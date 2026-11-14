@@ -21,6 +21,15 @@
             lookahead-size = <32>;
             block-cycles = <512>;
         };
+
+        /* The microSD card, which gets every log line (FAT, readable on any
+         * computer). Mounted by the logger on first use, not at boot, so a
+         * missing card cannot hold up boot. */
+        sd: sd {
+            compatible = "zephyr,fstab,fatfs";
+            mount-point = "/SD:";
+            disk-access;
+        };
     };
     
 	aliases {
@@ -158,9 +167,9 @@
 };
 
 
-/* Log storage on the onboard flash. The firmware sits at the bottom; Teensy
- * keeps its EEPROM emulation and recovery image in the top 256 KiB, from
- * 0x7c0000, so stay below that. */
+/* Critical log lines on the onboard flash. The firmware sits at the
+ * bottom; Teensy keeps its EEPROM emulation and recovery image in the top
+ * 256 KiB, from 0x7c0000, so stay below that. */
 &w25q64jvxgim {
     partitions {
         compatible = "fixed-partitions";

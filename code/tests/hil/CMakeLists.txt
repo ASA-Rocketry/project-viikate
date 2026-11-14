@@ -5,7 +5,7 @@ cmake_minimum_required(VERSION 3.20.0)
 
 get_filename_component(VIIKATE_APP ${CMAKE_CURRENT_LIST_DIR}/../../app ABSOLUTE)
 
-set(CONF_FILE ${VIIKATE_APP}/prj.conf)
+set(CONF_FILE ${VIIKATE_APP}/prj.conf ${VIIKATE_APP}/logger.conf)
 set(DTC_OVERLAY_FILE ${VIIKATE_APP}/app.overlay)
 list(APPEND DTS_ROOT ${VIIKATE_APP})
 

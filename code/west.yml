@@ -12,7 +12,8 @@ manifest:
           - cmsis_6
           - hal_nxp
           - hal_st
-          # Log file system.
+          # Log file systems: FAT on the SD card, littlefs on flash.
+          - fatfs
           - littlefs
 
     - name: cmsis-dsp

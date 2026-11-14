@@ -1,6 +1,6 @@
 """HIL log test: viikate_log() lines land in the log file on the Teensy's
-flash, survive a power cut, and the file rotates without losing or splitting
-lines.
+microSD card, survive a power cut, and the file rotates without losing
+or splitting lines.
 
 Before these tests run, the twister `dut` fixture has flashed the image and
 cut and restored USB power (post_flash_script). The image is the flight
@@ -33,7 +33,7 @@ def logger_define(name: str) -> str:
     return match.group(1).strip()
 
 
-LOG_DIR = logger_define("VIIKATE_LOG_DIR").strip('"')
+LOG_DIR = logger_define("VIIKATE_LOG_SD_DIR").strip('"')
 LOG_FILE = f"{LOG_DIR}/log.txt"
 MAX_SIZE = int(eval(logger_define("VIIKATE_LOG_FILE_MAX_SIZE"), {"__builtins__": {}}))
 FILE_COUNT = int(logger_define("VIIKATE_LOG_FILE_COUNT"))
@@ -106,7 +106,7 @@ def test_log_survives_power_cut(dut: DeviceAdapter):
     def ends_with_status(lines: list[str]) -> bool:
         return len(lines) >= 2 and all(STATUS.fullmatch(line) for line in lines[-2:])
 
-    # main() logs barometer and imu status on boot; wait until it is on flash.
+    # main() logs barometer and imu status on boot; wait until it is on the card.
     before = poll(lambda: all_lines(read_log(shell)), ends_with_status, 30)
     assert ends_with_status(before), f"boot status lines not in the log, log ends with {before[-5:]}"
 
