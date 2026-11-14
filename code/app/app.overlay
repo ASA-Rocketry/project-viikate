@@ -87,8 +87,8 @@
         accel-odr = <ISM330DHCX_DT_ODR_1666Hz>;
         gyro-odr  = <ISM330DHCX_DT_ODR_1666Hz>;
 
-        accel-range = <8>;      /* ±8 g */
-        gyro-range  = <2000>;   /* ±2000 dps */
+        accel-range = <8>;      /* +-8 g */
+        gyro-range  = <2000>;   /* +-2000 dps */
     };
 };
 

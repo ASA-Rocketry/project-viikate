@@ -91,8 +91,8 @@ double pressure_to_altitude(double pressure_pa) {
     const double P0 = 101325.0;  // Sea level pressure (Pa)
     const double T0 = 288.15;  // Sea level temperature (K)
     const double L = 0.0065;  // Temperature lapse rate (K/m)
-    const double g = 9.80665;  // Gravity (m/s²)
-    const double R = 287.05;  // Specific gas constant (J/(kg·K))
+    const double g = 9.80665;  // Gravity (m/s2)
+    const double R = 287.05;  // Specific gas constant (J/(kg*K))
 
     // Barometric formula: h = (T0 / L) * (1 - (P / P0)^(R*L/g))
     double exponent = (R * L) / g;
