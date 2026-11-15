@@ -9,6 +9,7 @@
 #include <zephyr/spinlock.h>
 #include <zephyr/sys/atomic.h>
 #include <zephyr/sys/printk.h>
+#include <zephyr/sys/reboot.h>
 #include <zephyr/sys/ring_buffer.h>
 #include <zephyr/sys/util.h>
 
@@ -417,8 +418,46 @@ static uint32_t take_dropped(void) {
     return n;
 }
 
+// Set by viikate_log_fatal: store everything queued, then stop the board.
+static atomic_t is_logging_irrecoverable_failures = ATOMIC_INIT(0);
+
+static char flush_chunk[FLUSH_CHUNK];
+
+// Prints and stores every queued line, then commits the files.
+static void flush_all(void) {
+    uint32_t n;
+    while ((n = take_lines(flush_chunk)) > 0) {
+        output(flush_chunk, n);
+    }
+
+    uint32_t lost = take_dropped();
+    if (lost > 0) {
+        int len = snprintk(
+            flush_chunk,
+            sizeof(flush_chunk),
+            "log: dropped %u lines\n",
+            lost
+        );
+        output_line(VIIKATE_LOG_WARN, flush_chunk, (size_t)len);
+    }
+
+    sync_storage();
+}
+
+// Builds with CONFIG_ASSERT (the simulator and the HIL test firmware) halt,
+// so a run stops where the failure happened. Flight builds reset and go on.
+static FUNC_NORETURN void stop_board(void) {
+    // Gives the USB console a moment to send the last lines.
+    k_sleep(K_MSEC(100));
+#ifdef CONFIG_ASSERT
+    k_panic();
+#else
+    sys_reboot(SYS_REBOOT_COLD);
+#endif
+    CODE_UNREACHABLE;
+}
+
 static void flush_thread(void *arg1, void *arg2, void *arg3) {
-    static char chunk[FLUSH_CHUNK];
     ARG_UNUSED(arg1);
     ARG_UNUSED(arg2);
     ARG_UNUSED(arg3);
@@ -427,21 +466,58 @@ static void flush_thread(void *arg1, void *arg2, void *arg3) {
 
     for (;;) {
         k_sem_take(&viikate_log_pending, K_FOREVER);
-
-        uint32_t n;
-        while ((n = take_lines(chunk)) > 0) {
-            output(chunk, n);
+        flush_all();
+        if (atomic_get(&is_logging_irrecoverable_failures)) {
+            // Again, for lines queued while the files were being synced.
+            flush_all();
+            stop_board();
         }
-
-        uint32_t lost = take_dropped();
-        if (lost > 0) {
-            int len =
-                snprintk(chunk, sizeof(chunk), "log: dropped %u lines\n", lost);
-            output_line(VIIKATE_LOG_WARN, chunk, (size_t)len);
-        }
-
-        sync_storage();
     }
+}
+
+void viikate_log_fatal(void) {
+    atomic_set(&is_logging_irrecoverable_failures, 1);
+
+    if (k_current_get() == viikate_log_thread) {
+        // Failed inside the logger thread, which nobody else will flush.
+        flush_all();
+        stop_board();
+    }
+
+    // Ahead of every other thread, so the logs are stored before anything
+    // else runs. From an ISR, that happens as soon as the ISR returns.
+    k_thread_priority_set(viikate_log_thread, K_HIGHEST_THREAD_PRIO);
+    k_sem_give(&viikate_log_pending);
+
+    if (!k_is_in_isr()) {
+        // The failed thread must not carry on.
+        for (;;) {
+            k_sleep(K_FOREVER);
+        }
+    }
+}
+
+// Queues one line, all or nothing, so the console and the files never get
+// half a line. Returns false if the buffer was full and the line dropped.
+static bool queue_line(viikate_log_level_t level, const line_t *line) {
+    const uint8_t tag = (uint8_t)level;
+    bool queued = false;
+
+    k_spinlock_key_t key = k_spin_lock(&lock);
+    if (ring_buf_space_get(&viikate_log_buffer) >= 1 + line->len + 1) {
+        ring_buf_put(&viikate_log_buffer, &tag, 1);
+        ring_buf_put(
+            &viikate_log_buffer,
+            (const uint8_t *)line->text,
+            line->len
+        );
+        ring_buf_put(&viikate_log_buffer, (const uint8_t *)&NEWLINE, 1);
+        queued = true;
+    } else {
+        ++dropped;
+    }
+    k_spin_unlock(&lock, key);
+    return queued;
 }
 
 bool viikate_log_write(
@@ -456,21 +532,7 @@ bool viikate_log_write(
     for (size_t i = 0; i < count; ++i) {
         append_arg(&line, &args[i]);
     }
-
-    const uint8_t tag = (uint8_t)level;
-    bool queued = false;
-
-    k_spinlock_key_t key = k_spin_lock(&lock);
-    // All or nothing, so the console and the files never get half a line.
-    if (ring_buf_space_get(&viikate_log_buffer) >= 1 + line.len + 1) {
-        ring_buf_put(&viikate_log_buffer, &tag, 1);
-        ring_buf_put(&viikate_log_buffer, (const uint8_t *)line.text, line.len);
-        ring_buf_put(&viikate_log_buffer, (const uint8_t *)&NEWLINE, 1);
-        queued = true;
-    } else {
-        ++dropped;
-    }
-    k_spin_unlock(&lock, key);
+    bool queued = queue_line(level, &line);
 
     // Never blocks, and is safe from ISRs.
     k_sem_give(&viikate_log_pending);
