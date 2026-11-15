@@ -219,7 +219,8 @@ int main(void) {
                 "time_per_kalman",
                 total_s / (float)(loops > 0 ? loops : 1)
             );
-            // Split over lines so none is cut at VIIKATE_LOG_MAX_LINE_LEN.
+            // Split by hand: a line longer than VIIKATE_LOG_MAX_LINE_LEN
+            // stops the simulator and the tests.
             log_info(
                 "state pos",
                 k.position,

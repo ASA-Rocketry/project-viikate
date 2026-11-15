@@ -73,7 +73,8 @@ typedef struct {
     size_t len;
 } line_t;
 
-static void append(line_t *line, const char *fmt, ...) {
+// Returns false if the text did not fit and was cut.
+static bool append(line_t *line, const char *fmt, ...) {
     va_list ap;
     va_start(ap, fmt);
     int n = vsnprintk(
@@ -84,9 +85,12 @@ static void append(line_t *line, const char *fmt, ...) {
     );
     va_end(ap);
 
-    if (n > 0) {
-        line->len = MIN(line->len + (size_t)n, LINE_CAPACITY);
+    if (n <= 0) {
+        return true;
     }
+    bool fits = line->len + (size_t)n <= LINE_CAPACITY;
+    line->len = MIN(line->len + (size_t)n, LINE_CAPACITY);
+    return fits;
 }
 
 static const char *level_name(viikate_log_level_t level) {
@@ -102,48 +106,54 @@ static const char *level_name(viikate_log_level_t level) {
 }
 
 // " [x, y, z]" for a vector, " [[a, b], [c, d]]" for a matrix (row-major).
-static void
+// Returns false if it did not fit and was cut.
+static bool
 append_floats(line_t *line, const float *v, unsigned rows, unsigned cols) {
-    append(line, rows > 1 ? " [" : " ");
+    bool fits = append(line, rows > 1 ? " [" : " ");
     for (unsigned r = 0; r < rows; ++r) {
-        append(line, r > 0 ? ", [" : "[");
+        fits = append(line, r > 0 ? ", [" : "[") && fits;
         for (unsigned c = 0; c < cols; ++c) {
-            append(line, c > 0 ? ", %g" : "%g", (double)v[r * cols + c]);
+            fits = append(line, c > 0 ? ", %g" : "%g", (double)v[r * cols + c])
+                && fits;
         }
-        append(line, "]");
+        fits = append(line, "]") && fits;
     }
     if (rows > 1) {
-        append(line, "]");
+        fits = append(line, "]") && fits;
     }
+    return fits;
 }
 
-static void append_arg(line_t *line, const viikate_log_arg_t *arg) {
+// Returns false if the argument did not fit and was cut.
+static bool append_arg(line_t *line, const viikate_log_arg_t *arg) {
     switch (arg->type) {
         case VIIKATE_LOG_STR:
-            append(line, " %s", arg->as.s != NULL ? arg->as.s : "(null)");
-            break;
+            return append(
+                line,
+                " %s",
+                arg->as.s != NULL ? arg->as.s : "(null)"
+            );
         case VIIKATE_LOG_CHAR:
-            append(line, " %c", arg->as.c);
-            break;
+            return append(line, " %c", arg->as.c);
         case VIIKATE_LOG_BOOL:
-            append(line, " %s", arg->as.b ? "true" : "false");
-            break;
+            return append(line, " %s", arg->as.b ? "true" : "false");
         case VIIKATE_LOG_INT:
-            append(line, " %lld", arg->as.i);
-            break;
+            return append(line, " %lld", arg->as.i);
         case VIIKATE_LOG_UINT:
-            append(line, " %llu", arg->as.u);
-            break;
+            return append(line, " %llu", arg->as.u);
         case VIIKATE_LOG_DOUBLE:
-            append(line, " %g", arg->as.d);
-            break;
+            return append(line, " %g", arg->as.d);
         case VIIKATE_LOG_PTR:
-            append(line, " %p", arg->as.p);
-            break;
+            return append(line, " %p", arg->as.p);
         case VIIKATE_LOG_FLOATS:
-            append_floats(line, arg->as.f.v, arg->as.f.rows, arg->as.f.cols);
-            break;
+            return append_floats(
+                line,
+                arg->as.f.v,
+                arg->as.f.rows,
+                arg->as.f.cols
+            );
     }
+    return true;
 }
 
 // Output. Runs in the flush thread only.
@@ -527,14 +537,45 @@ bool viikate_log_write(
 ) {
     // Formatted on the caller's stack, so a line is complete before it is
     // queued.
+    const long long uptime = (long long)k_uptime_get();
     line_t line = {.len = 0};
-    append(&line, "%lld %s", (long long)k_uptime_get(), level_name(level));
+    append(&line, "%lld %s", uptime, level_name(level));
+    size_t empty = line.len;
+    bool queued = true;
+    bool too_long = false;
+
     for (size_t i = 0; i < count; ++i) {
-        append_arg(&line, &args[i]);
+        const size_t mark = line.len;
+        if (append_arg(&line, &args[i])) {
+            continue;
+        }
+        too_long = true;
+        if (mark == empty) {
+            // Longer than a whole line on its own: it stays cut.
+            continue;
+        }
+        // End the line before this argument and go on in a new one.
+        line.len = mark;
+        queued = queue_line(level, &line) && queued;
+        line.len = 0;
+        append(&line, "%lld %s ...", uptime, level_name(level));
+        empty = line.len;
+        (void)append_arg(&line, &args[i]);
     }
-    bool queued = queue_line(level, &line);
+    queued = queue_line(level, &line) && queued;
 
     // Never blocks, and is safe from ISRs.
     k_sem_give(&viikate_log_pending);
+
+    if (IS_ENABLED(CONFIG_ASSERT) && too_long) {
+        // The simulator and the tests stop here, so overlong log calls get
+        // split by hand before they fly; flight builds keep the split lines.
+        log_crit(
+            "log: line longer than",
+            LINE_CAPACITY,
+            "characters, split the log call"
+        );
+        viikate_log_fatal();
+    }
     return queued;
 }
