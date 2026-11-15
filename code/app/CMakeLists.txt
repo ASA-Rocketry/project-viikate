@@ -12,4 +12,5 @@ target_sources(app PRIVATE
     src/guidance/kalman.c
     src/guidance/filters.c
     src/guidance/pid.c
+    src/persistent_memory.c
 )

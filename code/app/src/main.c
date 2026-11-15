@@ -14,6 +14,7 @@
 #include "guidance/kalman.h"
 #include "guidance/pid.h"
 #include "math/linmath.h"
+#include "persistent_memory.h"
 #include "sensors.h"
 #include "servo.h"
 #include "state_machine.h"
@@ -101,6 +102,7 @@ int main(void) {
     rbf_init();
     barometer_init(barometer);
     imu_init(imu);
+    persist_init();
 
     imu_sample_t imu_sample;
     barometer_sample_t baro_sample;

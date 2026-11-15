@@ -6,6 +6,7 @@
 #include <zephyr/sys/time_units.h>
 
 #include "guidance/kalman.h"
+#include "persistent_memory.h"
 
 #define GYRO_BIAS_MAX 1.0f  // rad/s
 #define ACCELERATION_BIAS_MAX 0.5f  // m/s^2
@@ -84,10 +85,9 @@ static state_machine machine = {
 
 };
 
-static bool safe_check(
-    const kalman_filter_t *k,
-    const imu_sample_t *is
-) {  // TODO: Do we inted to boot with the RBF in?
+static bool boot_handled = false;
+
+static bool safe_check(const kalman_filter_t *k, const imu_sample_t *is) {
     return fabsf(norm3(is->acceleration) - GRAVITY_NOMINAL)
         < LAUNCH_ACCEL_THRESHOLD
         && !rbf_is_removed()
@@ -167,16 +167,11 @@ static bool fault_check(const kalman_filter_t *k, const imu_sample_t *is) {
     }
 
     // Speed reasonable:
-    if (machine.current_state >= Launch && norm3(k->velocity) > 300.0f) {
+    if (machine.current_state >= Launch
+        && norm3(k->velocity) > 300.0f) {  // TODO: This might be too little
         return true;
     }
 
-    // Booting in flight
-    if (machine.current_state == Boot
-        && norm3(is->acceleration) > LAUNCH_ACCEL_THRESHOLD
-        && rbf_is_removed()) {
-        return true;
-    }
     return false;
 }
 
@@ -258,16 +253,46 @@ static void entry_action(
         default:
             break;
     }
+
+    // Flight critical information to persistent memory
+    if (machine.liftoff_time != 0.0) {
+        flight_record r = {
+            .state = entered_state,
+            .pad_altitude = machine.pad_altitude,
+            .flight_time_s = (now_ns - machine.liftoff_time) * 1e-9f,
+        };
+        persist_write(PERSIST_ID_STATE, &r, sizeof(r));
+    }
 }
 
 FLIGHTSTATE
 state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
     const int64_t now_ns = k_ticks_to_ns_floor64(k_uptime_ticks());
-    const float time_flight = (float)(now_ns - machine.liftoff_time) * 1e-9f;
+    const float time_flight = machine.liftoff_time == 0
+        ? 0.0f
+        : (float)(now_ns - machine.liftoff_time) * 1e-9f;
 
     FLIGHTSTATE temp_state = machine.current_state;
     switch (machine.current_state) {
         case Boot:
+            if (!boot_handled) {
+                boot_handled = true;
+                flight_record r;
+                if (persist_read(PERSIST_ID_STATE, &r, sizeof(r))) {
+                    if (!rbf_is_removed()) {  // Normal boot
+                        r.state = Boot;
+                        persist_write(PERSIST_ID_STATE, &r, sizeof(r));
+                    } else if (r.state != Landing
+                               && r.state
+                                   != Boot) {  // Inflight boot. Previous state is returned.
+                        int64_t liftoff = now_ns - (r.flight_time_s * 1e9f);
+                        machine.liftoff_time = (liftoff == 0.0) ? 1.0 : liftoff;
+                        machine.pad_altitude = r.pad_altitude;
+                        machine.current_state = Fault;
+                        break;
+                    }
+                }
+            }
             if (safe_check(k, is)) {
                 machine.current_state = Safe;
             }
@@ -307,13 +332,9 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
             if (machine.liftoff_time == 0.0f
                 && norm3(is->acceleration) < LAUNCH_ACCEL_THRESHOLD) {
                 machine.current_state = Abort;
-            } else {
-                if (time_flight > MAX_FLIGHT_TIME) {
-                    machine.current_state = Landing;
-                } else if (recovery_check(k)) {
-                    machine.current_state = Recovery;
-                }  // Only activate recovery when speed allows
-            }
+            } else if (machine.liftoff_time != 0 && recovery_check(k)) {
+                machine.current_state = Recovery;
+            }  // Only activate recovery when speed allows
             break;
         case Abort:
             break;
@@ -324,7 +345,8 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
 
     // Time based transitions:
     if (machine.current_state == Launch || machine.current_state == Guidance
-        || machine.current_state == Recovery) {
+        || machine.current_state == Recovery
+        || machine.current_state == Fault) {
         if (time_flight >= RECOVERY_DEPLOYMENT_TIME
             && time_flight < MAX_FLIGHT_TIME) {
             machine.current_state = Recovery;
@@ -333,7 +355,7 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
         }
     }
 
-    if (machine.current_state > temp_state) {
+    if (machine.current_state != temp_state) {
         machine.previous_state = temp_state;
         entry_action(machine.current_state, k, now_ns);
     }
