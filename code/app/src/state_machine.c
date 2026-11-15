@@ -87,6 +87,9 @@ static state_machine machine = {
 
 static bool boot_handled = false;
 
+// Each check checks if it is possible to move to the state.
+// Ex. pad_check passed -> can move to pad state.
+
 static bool safe_check(const kalman_filter_t *k, const imu_sample_t *is) {
     return fabsf(norm3(is->acceleration) - GRAVITY_NOMINAL)
         < LAUNCH_ACCEL_THRESHOLD
@@ -105,6 +108,10 @@ static bool pad_check(const kalman_filter_t *k) {
     if (norm3(k->accelerometer_bias) > ACCELERATION_BIAS_MAX
         || norm3(k->gyroscope_bias) > GYRO_BIAS_MAX) {
         printk("IMU BIAS TOO HIGH");
+        return false;
+    }
+    if (k->gravity < GRAVITY_NOMINAL - 0.5) {
+        printk("GRAVITY ESTIMATE WRONG");
         return false;
     }
     if (0) {  // TODO: Orientation check
@@ -180,8 +187,8 @@ static bool recovery_check(const kalman_filter_t *k) {
     static int64_t start_time = 0.0f;
     static bool timing_active = false;
 
-    if ((k->position[1] > (machine.pad_altitude + LAUNCH_ALT_THRESHOLD)
-         && k->velocity[1] < 0.0f && rbf_is_removed())) {
+    if ((k->position[2] > (machine.pad_altitude + LAUNCH_ALT_THRESHOLD)
+         && k->velocity[2] < 0.0f && rbf_is_removed())) {
         if (!timing_active) {
             timing_active = true;
             start_time = now_ns;
@@ -197,7 +204,7 @@ static bool recovery_check(const kalman_filter_t *k) {
 
 static bool landing_check(const kalman_filter_t *k, const imu_sample_t *is) {
     const int64_t now_ns = k_ticks_to_ns_floor64(k_uptime_ticks());
-    const float altitude = k->position[1];
+    const float altitude = k->position[2];
     const float altitude_difference =
         fabsf(altitude - machine.landing_reference_altitude);
     const float stable_time =
@@ -232,7 +239,7 @@ static void entry_action(
         case Safe:
             break;
         case Pad:
-            machine.pad_altitude = (float)k->position[1];
+            machine.pad_altitude = (float)k->position[2];
             break;
         case Launch:
             if (machine.liftoff_time == 0.0) {
@@ -328,7 +335,7 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
             break;
         case Landing:
             break;
-        case Fault:  // Vehicle is made safe
+        case Fault:  // Vehicle is made safe. Never return to guidance in flight when a fault is detected!
             if (machine.liftoff_time == 0.0f
                 && norm3(is->acceleration) < LAUNCH_ACCEL_THRESHOLD) {
                 machine.current_state = Abort;
@@ -369,7 +376,7 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
             if (machine.fault_activation_time == 0.0f) {
                 machine.fault_activation_time = now_ns;
             } else if ((now_ns - machine.fault_activation_time)
-                       >= FAULT_CONFIRMATION_TIME * 1e9f) {
+                       >= (int64_t)(FAULT_CONFIRMATION_TIME * 1e9f)) {
                 machine.fault_activation_time = 0.0f;
                 machine.previous_state = machine.current_state;
                 machine.current_state = Fault;

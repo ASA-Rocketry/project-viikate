@@ -60,7 +60,8 @@ pid_update(pid_t *pid, float current_roll, float target_roll, float dt) {
 
     /* Integral term with anti-windup */
     pid->integral += error * dt;
-    pid->integral = clampf(pid->integral, -pid->integral_limit, pid->integral_limit);
+    pid->integral =
+        clampf(pid->integral, -pid->integral_limit, pid->integral_limit);
 
     /* Derivative term (skip on first sample to avoid spike) */
     float derivative = 0.0f;
@@ -72,7 +73,8 @@ pid_update(pid_t *pid, float current_roll, float target_roll, float dt) {
     }
     pid->prev_measurement = current_roll;
 
-    float output = (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
+    float output =
+        (pid->kp * error) + (pid->ki * pid->integral) + (pid->kd * derivative);
 
     return clampf(output, -pid->output_limit, pid->output_limit);
 }
