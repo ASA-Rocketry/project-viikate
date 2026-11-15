@@ -1,5 +1,4 @@
 #include <arm_math.h>
-#include <assert.h>
 #include <math.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -142,8 +141,6 @@ int main(void) {
     imu_sample_t imu_sample;
     barometer_sample_t baro_sample;
     int ret;
-
-    assert(imu_filter != NULL);
 
     float drift_last = 0.0f;
 

@@ -104,6 +104,12 @@ bool viikate_log_write(
     size_t count
 );
 
+/* Stores everything logged so far, then resets the board, or halts it in
+ * builds with CONFIG_ASSERT. Use ASSERT from check.h instead of calling this.
+ * Never returns when called from a thread. Called from an ISR it returns, and
+ * the logger stores the lines and stops the board once the ISR is done. */
+void viikate_log_fatal(void);
+
 // clang-format off
 static inline viikate_log_arg_t viikate_log_str_(const char *v) { return (viikate_log_arg_t){VIIKATE_LOG_STR, {.s = v}}; }
 static inline viikate_log_arg_t viikate_log_char_(char v) { return (viikate_log_arg_t){VIIKATE_LOG_CHAR, {.c = v}}; }
