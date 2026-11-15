@@ -169,7 +169,8 @@
 
 /* Critical log lines on the onboard flash. The firmware sits at the
  * bottom; Teensy keeps its EEPROM emulation and recovery image in the top
- * 256 KiB, from 0x7c0000, so stay below that. */
+ * 256 KiB, from 0x7c0000, so stay below that. The Teensy bootloader erases
+ * this partition on every firmware upload; power cuts leave it intact. */
 &w25q64jvxgim {
     partitions {
         compatible = "fixed-partitions";

@@ -39,7 +39,8 @@
  * log.txt becomes log.1.txt, log.1.txt becomes log.2.txt and so on. At most
  * VIIKATE_LOG_FILE_COUNT files are kept, the oldest one is deleted. crit.txt
  * rotates the same way within its own, smaller limits, so the flash only ever
- * holds the latest critical lines.
+ * holds the latest critical lines. Uploading new firmware erases crit.txt:
+ * read it before reflashing.
  */
 
 #include <stdbool.h>
