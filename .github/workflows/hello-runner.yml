@@ -1,0 +1,34 @@
+name: Hello self-hosted runner
+on:
+  push:
+    paths:
+      - .github/workflows/hello-runner.yml
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  # Runs on a GitHub-hosted machine: nothing reaches the rig unless the person
+  # who triggered the run has write access to the repository.
+  collaborator:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check that the actor is a collaborator with write access
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          ACTOR: ${{ github.actor }}
+        run: |
+          permission=$(gh api "repos/$REPO/collaborators/$ACTOR/permission" --jq .permission)
+          echo "$ACTOR has $permission access"
+          case $permission in
+            admin|maintain|write) ;;
+            *) echo "::error::$ACTOR is not a collaborator with write access"; exit 1 ;;
+          esac
+
+  hello:
+    needs: collaborator
+    runs-on: self-hosted
+    steps:
+      - run: echo "Hello from $(hostname)"

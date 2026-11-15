@@ -1,7 +1,7 @@
 #include "guidance/pid.h"
 
+#include "logger.h"
 #include "zephyr/kernel.h"
-#include "zephyr/sys/printk.h"
 
 static const servo_t servo0 = DT_SERVO_GET(DT_NODELABEL(servo0));
 static const servo_t servo1 = DT_SERVO_GET(DT_NODELABEL(servo1));
@@ -88,7 +88,7 @@ void roll_control_reset(void) {
  */
 void roll_control_update(float current_roll, float target_roll, float dt) {
     float error = target_roll - current_roll;
-    printk("erorr %f\n", (double)error);
+    log_info("roll error", error);
 
     float correction = pid_update(&roll_pid, error, dt);
 
@@ -113,9 +113,6 @@ void roll_control_update(float current_roll, float target_roll, float dt) {
     static uint64_t roll_dt_max = 0;
     if (roll_dt > roll_dt_max) {
         roll_dt_max = roll_dt;
-        printk(
-            "NEW MAX roll_control_update: %llu ns at loop \n",
-            (unsigned long long)roll_dt
-        );
+        log_info("roll_control_update new max", roll_dt, "ns");
     }
 }

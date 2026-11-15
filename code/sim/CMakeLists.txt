@@ -1,9 +1,4 @@
 if(CONFIG_VIIKATE_SIM)
-  # code/app/src/main.c asserts on a symbol that no longer exists
-  # (imu_filter). On the target, assert() is a no-op without CONFIG_ASSERT,
-  # so mirror that here instead of failing the host build.
-  zephyr_compile_definitions(NDEBUG)
-
   zephyr_library()
   zephyr_library_include_directories(include)
   zephyr_library_sources(
