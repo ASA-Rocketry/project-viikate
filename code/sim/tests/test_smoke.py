@@ -86,14 +86,7 @@ class SmokeTest(unittest.TestCase):
 
     @unittest.expectedFailure
     def test_roll_disturbance_is_rejected(self):
-        """Known failure: the firmware does not damp a 1 rad/s roll kick.
-
-        Today's mixing in code/app/src/guidance/pid.c (+,+,-,-) cancels the
-        roll moment in the plant's fin geometry, and main.c passes radians
-        into roll_control_update(), which expects degrees. Remove the
-        expectedFailure marker once roll control works; the test then has
-        to pass.
-        """
+        """The roll loop damps a 1 rad/s kick within a few seconds."""
         result = sil.run(EXE, 6)
         late = result.between(5000, 6000)
         self.assertLess(max_abs(late, ["roll_rate_dps"]), 5.0)
