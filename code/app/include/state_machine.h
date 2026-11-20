@@ -1,5 +1,9 @@
 #pragma once
-#include "guidance/kalman.h"
+
+#include <stdbool.h>
+#include <stdint.h>
+
+#include "sensors.h"
 
 typedef enum {
     Boot,
@@ -33,5 +37,7 @@ typedef struct {
     float flight_time_s;
 } flight_record;
 
+struct kalman_filter_s;  //Forward declare to avoid circular #include
+
 FLIGHTSTATE
-state_machine_update(const kalman_filter_t *k, const imu_sample_t *is);
+state_machine_update(const struct kalman_filter_s *k, const imu_sample_t *is);
