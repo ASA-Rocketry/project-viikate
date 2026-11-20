@@ -321,9 +321,9 @@ void ekf_predict(kalman_filter_t *s, imu_sample_t sample, FLIGHTSTATE state) {
 
     for (int i = 0; i < 3; i++) {
         for (int j = 0; j < 3; j++) {
-            float W_a_ij = R[i][0] * R[j][0] * s->accel_noise_var[0]
-                + R[i][1] * R[j][1] * s->accel_noise_var[1]
-                + R[i][2] * R[j][2] * s->accel_noise_var[2];
+            float W_a_ij = R[i][0] * R[j][0] * s->accel_noise_var[0] * imu_scale
+                + R[i][1] * R[j][1] * s->accel_noise_var[1] * imu_scale
+                + R[i][2] * R[j][2] * s->accel_noise_var[2] * imu_scale;
 
             s->P[EKF_IDX_POS + i][EKF_IDX_POS + j] += dt4_4 * W_a_ij;  // Q_pp
             s->P[EKF_IDX_POS + i][EKF_IDX_VEL + j] += dt3_2 * W_a_ij;  // Q_pv
@@ -335,9 +335,10 @@ void ekf_predict(kalman_filter_t *s, imu_sample_t sample, FLIGHTSTATE state) {
     // 7b. Gyro control noise projection: W_g = Xi * M_g * Xi^T [4x4]
     for (int r = 0; r < 4; r++) {
         for (int c = 0; c < 4; c++) {
-            float W_g_rc = Xi[r][0] * Xi[c][0] * s->gyro_noise_var[0]
-                + Xi[r][1] * Xi[c][1] * s->gyro_noise_var[1]
-                + Xi[r][2] * Xi[c][2] * s->gyro_noise_var[2];
+            float W_g_rc =
+                Xi[r][0] * Xi[c][0] * s->gyro_noise_var[0] * imu_scale
+                + Xi[r][1] * Xi[c][1] * s->gyro_noise_var[1] * imu_scale
+                + Xi[r][2] * Xi[c][2] * s->gyro_noise_var[2] * imu_scale;
 
             s->P[EKF_IDX_QUAT + r][EKF_IDX_QUAT + c] += dt2_4 * W_g_rc;  // Q_qq
         }
@@ -509,24 +510,13 @@ void ekf_update_mag(
     const float qz = s->orientation[2];
     const float qw = s->orientation[3];
 
-    const float R[3][3] = {
-        {1.0f - 2.0f * (qy * qy + qz * qz),
-         2.0f * (qx * qy - qw * qz),
-         2.0f * (qx * qz + qw * qy)},
-        {2.0f * (qx * qy + qw * qz),
-         1.0f - 2.0f * (qx * qx + qz * qz),
-         2.0f * (qy * qz - qw * qx)},
-        {2.0f * (qx * qz - qw * qy),
-         2.0f * (qy * qz + qw * qx),
-         1.0f - 2.0f * (qx * qx + qy * qy)}
-    };
-
     const float v0 = qx * mwx + qy * mwy + qz * mwz;
     const float v1 = qw * mwx + qz * mwy - qy * mwz;
     const float v2 = -qz * mwx + qw * mwy + qx * mwz;
     const float v3 = qy * mwx - qx * mwy + qw * mwz;
 
     const float J_mag_q[3][4] = {
+        //TODO: Check if needs to be re-evalued inside loop
         {2.0f * v0, -2.0f * v3, 2.0f * v2, 2.0f * v1},
         {2.0f * v3, 2.0f * v0, -2.0f * v1, 2.0f * v2},
         {-2.0f * v2, 2.0f * v1, 2.0f * v0, 2.0f * v3}
@@ -537,6 +527,18 @@ void ekf_update_mag(
     const bool freeze_biases = ekf_should_freeze_biases(state);
 
     for (int r = 0; r < 3; r++) {
+        const float R[3][3] = {
+            {1.0f - 2.0f * (qy * qy + qz * qz),
+             2.0f * (qx * qy - qw * qz),
+             2.0f * (qx * qz + qw * qy)},
+            {2.0f * (qx * qy + qw * qz),
+             1.0f - 2.0f * (qx * qx + qz * qz),
+             2.0f * (qy * qz - qw * qx)},
+            {2.0f * (qx * qz - qw * qy),
+             2.0f * (qy * qz + qw * qx),
+             1.0f - 2.0f * (qx * qx + qy * qy)}
+        };
+
         const float h_r = R[0][r] * mwx + R[1][r] * mwy + R[2][r] * mwz;
         const float y_r = z_mag[r] - h_r;
 
