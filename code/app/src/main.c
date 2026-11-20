@@ -15,6 +15,7 @@
 #include "math/linmath.h"
 #include "sensors.h"
 #include "servo.h"
+#include "state_machine.h"
 #include "zephyr/sys/time_units.h"
 
 #define IMU_NODE DT_NODELABEL(imu)
@@ -32,6 +33,7 @@ enum direction {
 
 #define TASK_BAROMETER_READ_STACK_SIZE 4096
 #define TASK_BAROMETER_READ_PRIORITY 1
+#define AVG_COUNT 256
 
 K_THREAD_DEFINE(
     task_barometer_read_thread_id,
@@ -145,14 +147,14 @@ int main(void) {
     barometer_sample_t baro_sample;
     int ret;
 
-    assert(imu_filter != NULL);
+    FLIGHTSTATE state = Pad;
 
     float drift_last = 0.0f;
 
     vec3 avg_accel = {0}, avg_gyro = {0};
 
     vec3 g = {0};
-#define AVG_COUNT 256
+
     for (int k_idx = 0; k_idx < AVG_COUNT; ++k_idx) {
         ret = k_msgq_get(&imu_msgq, &imu_sample, K_FOREVER);
         transform_coords(&imu_sample);
@@ -162,7 +164,6 @@ int main(void) {
 
     kalman_filter_t k = kalman_init(g);
 
-#define AVG_COUNT 256
     for (int k_idx = 0; k_idx < AVG_COUNT; ++k_idx) {
         ret = k_msgq_get(&imu_msgq, &imu_sample, K_FOREVER);
         transform_coords(&imu_sample);
@@ -200,7 +201,8 @@ int main(void) {
         /* Read IMU if data is available */
         while ((ret = k_msgq_get(&imu_msgq, &imu_sample, K_NO_WAIT)) == 0) {
             transform_coords(&imu_sample);
-            ekf_predict(&k, imu_sample);
+            //state = state_machine_update(&k, &imu_sample);
+            ekf_predict(&k, imu_sample, state);
             loops++;
         }
 
@@ -210,7 +212,7 @@ int main(void) {
                == 0) {
             float altitude = (float)pressure_to_altitude(baro_sample.pressure)
                 - base_altitude;
-            k.position[1] = altitude;
+            ekf_update_baro(&k, altitude, state);
         }
 
         /* Print state every 500 iterations (~500 ms at 1 kHz) */
