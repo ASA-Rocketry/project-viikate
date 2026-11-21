@@ -16,9 +16,12 @@
 #define GUIDANCE_ALT_START 30.0f  // meters (Above launch pad)
 #define RECOVERY_DEPLOYMENT_TIME \
     20.0f  // s (When recovery is forced after launch. Should be apogee + some margin)
-#define MAX_FLIGHT_TIME 240.0f  // s (When landing is forced after launch)
-#define CHECKLIST_TIMEOUT 60.0f  // s (Checklist fails after this time)
-#define FAULT_CONFIRMATION_TIME 1.0f  // s (Fault must be active for this long)
+#define MAX_FLIGHT_TIME \
+    240.0f  // s (When landing is forced after launch. Should be absolute max flight time + some margin)
+#define CHECKLIST_TIMEOUT \
+    60.0f  // s (Failing the checklist for this long aborts the launch)
+#define FAULT_CONFIRMATION_TIME \
+    1.0f  // s (Fault must be active for this long to become active)
 #define LANDING_ALTITUDE_TOLERANCE \
     0.25f  // m (How much altitude can fluctuate in landing state)
 #define LANDING_STABLE_TIME \
@@ -73,18 +76,9 @@ static float norm4(const float v[4]) {
 }
 
 static state_machine machine = {
-    .previous_state = Boot,
     .current_state = Boot,
-    .pad_altitude = 0.0f,
-    .checklist_time = 0.0f,
-    .liftoff_time = 0.0f,
-    .fault_entry_time = 0.0f,
-    .landing_reference_altitude = 0.0f,
-    .landing_stable_since = 0.0f,
-    .landing_timer_running = false,
-
+    .previous_state = Boot,
 };
-
 static bool boot_handled = false;
 
 // Each check checks if it is possible to move to the state.
@@ -100,13 +94,14 @@ static bool safe_check(const kalman_filter_t *k, const imu_sample_t *is) {
 
 static bool pad_check(const kalman_filter_t *k, bool controls_checked) {
     if (!rbf_is_removed()) {
+        machine.checklist_time = 0.0f;
         return false;
     }
     if (machine.checklist_time == 0.0f) {
         machine.checklist_time = k_ticks_to_ns_floor64(k_uptime_ticks());
     }
-    if (norm3(k->accelerometer_bias) > ACCELERATION_BIAS_MAX
-        || norm3(k->gyroscope_bias) > GYRO_BIAS_MAX) {
+    if (!(norm3(k->accelerometer_bias) <= ACCELERATION_BIAS_MAX)
+        || !(norm3(k->gyroscope_bias) <= GYRO_BIAS_MAX)) {
         printk("IMU BIAS TOO HIGH");
         return false;
     }
@@ -137,13 +132,13 @@ static bool pad_check(const kalman_filter_t *k, bool controls_checked) {
 
 static bool launch_check(const kalman_filter_t *k, const imu_sample_t *is) {
     return (
-        (k->position[1] > machine.pad_altitude + LAUNCH_ALT_THRESHOLD)
+        (k->position[2] > machine.pad_altitude + LAUNCH_ALT_THRESHOLD)
         || norm3(is->acceleration) > LAUNCH_ACCEL_THRESHOLD
     );
 }
 
 static bool guidance_check(const kalman_filter_t *k) {
-    return (k->position[1] > machine.pad_altitude + GUIDANCE_ALT_START);
+    return (k->position[2] > machine.pad_altitude + GUIDANCE_ALT_START);
 }
 
 static bool fault_check(const kalman_filter_t *k, const imu_sample_t *is) {
@@ -178,8 +173,7 @@ static bool fault_check(const kalman_filter_t *k, const imu_sample_t *is) {
     }
 
     // Speed reasonable:
-    if (machine.current_state >= Launch
-        && norm3(k->velocity) > 300.0f) {  // TODO: This might be too little
+    if (machine.current_state >= Launch && norm3(k->velocity) > 300.0f) {
         return true;
     }
 
@@ -209,29 +203,23 @@ static bool recovery_check(const kalman_filter_t *k) {
 static bool landing_check(const kalman_filter_t *k, const imu_sample_t *is) {
     const int64_t now_ns = k_ticks_to_ns_floor64(k_uptime_ticks());
     const float altitude = k->position[2];
-    const float altitude_difference =
-        fabsf(altitude - machine.landing_reference_altitude);
-    const float stable_time =
-        (float)(now_ns - machine.landing_stable_since) * 1e-9f;
+    int64_t stable_time = 0;
 
-    if (!machine.landing_timer_running) {
+    const bool moved = fabsf(altitude - machine.landing_reference_altitude)
+            > LANDING_ALTITUDE_TOLERANCE
+        || norm3(k->velocity) > LANDING_SPEED_TOLERANCE;
+
+    if (machine.landing_stable_since == 0 || moved) {
         machine.landing_reference_altitude = altitude;
         machine.landing_stable_since = now_ns;
-        machine.landing_timer_running = true;
         return false;
     }
-
-    if (altitude_difference > LANDING_ALTITUDE_TOLERANCE
-        || norm3(k->velocity) > LANDING_SPEED_TOLERANCE) {
-        machine.landing_timer_running = false;
-        return false;
-    }
-
+    stable_time = now_ns - machine.landing_stable_since;
     // Confirm landing only after altitude has remained stable and total speed is sufficiently low
     return (
         stable_time >= LANDING_STABLE_TIME
         && norm3(k->velocity) < LANDING_SPEED_TOLERANCE
-    );  // TODO: Acceleration here
+    );
 }
 
 static void entry_action(
@@ -257,7 +245,6 @@ static void entry_action(
         case Landing:
             break;
         case Fault:
-            machine.fault_entry_time = now_ns;
             break;
         case Abort:
             break;
@@ -299,7 +286,7 @@ state_machine_update(
                         persist_write(PERSIST_ID_STATE, &r, sizeof(r));
                     } else if (r.state != Landing
                                && r.state
-                                   != Boot) {  // Inflight boot. Previous state is returned.
+                                   != Boot) {  // Inflight boot. Previous state is returned and fault activated.
                         int64_t liftoff = now_ns - (r.flight_time_s * 1e9f);
                         machine.liftoff_time = (liftoff == 0.0) ? 1.0 : liftoff;
                         machine.pad_altitude = r.pad_altitude;
@@ -344,10 +331,10 @@ state_machine_update(
         case Landing:
             break;
         case Fault:  // Vehicle is made safe. Never return to guidance in flight when a fault is detected!
-            if (machine.liftoff_time == 0.0f
+            if (time_flight == 0.0f
                 && norm3(is->acceleration) < LAUNCH_ACCEL_THRESHOLD) {
                 machine.current_state = Abort;
-            } else if (machine.liftoff_time != 0 && recovery_check(k)) {
+            } else if (time_flight != 0.0f && recovery_check(k)) {
                 machine.current_state = Recovery;
             }  // Only activate recovery when speed allows
             break;
@@ -385,7 +372,6 @@ state_machine_update(
                 machine.fault_activation_time = now_ns;
             } else if ((now_ns - machine.fault_activation_time)
                        >= (int64_t)(FAULT_CONFIRMATION_TIME * 1e9f)) {
-                machine.fault_activation_time = 0.0f;
                 machine.previous_state = machine.current_state;
                 machine.current_state = Fault;
                 entry_action(machine.current_state, k, now_ns);

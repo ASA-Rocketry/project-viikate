@@ -19,11 +19,9 @@ typedef struct {
     float pad_altitude;  // m
     int64_t checklist_time;  // ms
     int64_t liftoff_time;  // ms
-    int64_t fault_entry_time;  // ms
+    int64_t fault_activation_time;
     float landing_reference_altitude;  // m
     int64_t landing_stable_since;  // ....
-    int64_t fault_activation_time;
-    bool landing_timer_running;
 
 } state_machine;
 
