@@ -311,6 +311,8 @@ state_machine_update(
         case Pad:
             if (launch_check(k, is)) {
                 machine.current_state = Launch;
+            } else if (!rbf_is_removed()) {
+                machine.current_state = Safe;
             }
             break;
         case Launch:
