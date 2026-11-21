@@ -21,20 +21,32 @@
 
 #define IMU_NODE DT_NODELABEL(imu)
 #define BAROMETER_NODE DT_NODELABEL(barometer)
-
-static const struct device *imu = DEVICE_DT_GET(IMU_NODE);
-static const struct device *barometer = DEVICE_DT_GET(BAROMETER_NODE);
-
 #define STEP PWM_USEC(10)
-
-enum direction {
-    DOWN,
-    UP,
-};
-
 #define TASK_BAROMETER_READ_STACK_SIZE 4096
 #define TASK_BAROMETER_READ_PRIORITY 1
 #define AVG_COUNT 256
+
+static const struct device *imu = DEVICE_DT_GET(IMU_NODE);
+static const struct device *barometer = DEVICE_DT_GET(BAROMETER_NODE);
+static const servo_t servo0 = DT_SERVO_GET(DT_NODELABEL(servo0));
+static const servo_t servo1 = DT_SERVO_GET(DT_NODELABEL(servo1));
+static const servo_t servo2 = DT_SERVO_GET(DT_NODELABEL(servo2));
+static const servo_t servo3 = DT_SERVO_GET(DT_NODELABEL(servo3));
+
+enum servo_check_phase {
+    SC_IDLE,
+    SC_MIN,
+    SC_MAX,
+    SC_DONE,
+};
+
+static enum servo_check_phase sc_phase = SC_IDLE;
+static int64_t sc_deadline_ms;
+
+//enum direction {
+//  DOWN,
+// UP,
+//};
 
 K_THREAD_DEFINE(
     task_barometer_read_thread_id,
@@ -47,6 +59,44 @@ K_THREAD_DEFINE(
     0,
     0
 );
+
+static void servo_set_all(float angle) {
+    servo_set_angle(servo0, angle);
+    servo_set_angle(servo1, angle);
+    servo_set_angle(servo2, angle);
+    servo_set_angle(servo3, angle);
+}
+
+static bool control_check_step(void) {
+    int64_t now = k_uptime_get();
+
+    switch (sc_phase) {
+        case SC_IDLE:
+            servo_set_all(-90.0f);
+            sc_deadline_ms = now + 500;
+            sc_phase = SC_MIN;
+            break;
+
+        case SC_MIN:
+            if (now >= sc_deadline_ms) {
+                servo_set_all(90.0f);
+                sc_deadline_ms = now + 500;
+                sc_phase = SC_MAX;
+            }
+            break;
+
+        case SC_MAX:
+            if (now >= sc_deadline_ms) {
+                servo_set_all(0.0f);
+                sc_phase = SC_DONE;
+            }
+            break;
+
+        case SC_DONE:
+            return true;
+    }
+    return false;
+}
 
 double pressure_to_altitude(double pressure_pa) {
     const double P0 = 101325.0;  // Sea level pressure (Pa)
@@ -176,36 +226,14 @@ int main(void) {
             k.position[1] = altitude;
         }
 
-        switch (state_machine_update(&k, &imu_sample)) {
+        switch (state_machine_update(&k, &imu_sample, controls_checked)) {
             case Boot:
                 // TODO: Beep every 10 seconds
                 break;
             case Safe:
-                static const servo_t servo0 =
-                    DT_SERVO_GET(DT_NODELABEL(servo0));
-                static const servo_t servo1 =
-                    DT_SERVO_GET(DT_NODELABEL(servo1));
-                static const servo_t servo2 =
-                    DT_SERVO_GET(DT_NODELABEL(servo2));
-                static const servo_t servo3 =
-                    DT_SERVO_GET(DT_NODELABEL(servo3));
-                if (!controls_checked) {
-                    servo_set_angle(servo0, -90.0f);
-                    servo_set_angle(servo1, -90.0f);
-                    servo_set_angle(servo2, -90.0f);
-                    servo_set_angle(servo3, -90.0f);
-                    k_sleep(K_MSEC(500));
-                    servo_set_angle(servo0, 90.0f);
-                    servo_set_angle(servo1, 90.0f);
-                    servo_set_angle(servo2, 90.0f);
-                    servo_set_angle(servo3, 90.0f);
-                    k_sleep(K_MSEC(500));
-                    servo_set_angle(servo0, 0.0f);
-                    servo_set_angle(servo1, 0.0f);
-                    servo_set_angle(servo2, 0.0f);
-                    servo_set_angle(servo3, 0.0f);
-                    controls_checked = true;
-                }  // TODO: This current implementation is blocking with k_sleep.
+                if (!controls_checked && rbf_is_removed()) {
+                    controls_checked = control_check_step();
+                }
                 // TODO: Beep every 5 seconds
                 break;
             case Pad:
@@ -213,6 +241,7 @@ int main(void) {
                 break;
 
             case Launch:
+                // TODO: Makes sure beeping stops
                 break;
 
             case Guidance:
@@ -237,7 +266,7 @@ int main(void) {
 
             case Landing:
                 // TODO: Save sd-card
-                // TODO: Reduce polling rate of sensors
+                // TODO: Reduce polling rate of sensors?
                 // TODO: Wait x minutes and start beeping every y seconds.
                 break;
 

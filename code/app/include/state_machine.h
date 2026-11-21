@@ -33,5 +33,8 @@ typedef struct {
     float flight_time_s;
 } flight_record;
 
-FLIGHTSTATE
-state_machine_update(const kalman_filter_t *k, const imu_sample_t *is);
+FLIGHTSTATE state_machine_update(
+    const kalman_filter_t *k,
+    const imu_sample_t *is,
+    bool controls_checked
+);

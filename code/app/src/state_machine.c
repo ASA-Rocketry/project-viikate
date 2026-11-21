@@ -98,7 +98,7 @@ static bool safe_check(const kalman_filter_t *k, const imu_sample_t *is) {
         > 5.0f;  // Stabilizing after boot for 5s before system can proceed
 }
 
-static bool pad_check(const kalman_filter_t *k) {
+static bool pad_check(const kalman_filter_t *k, bool controls_checked) {
     if (!rbf_is_removed()) {
         return false;
     }
@@ -125,6 +125,10 @@ static bool pad_check(const kalman_filter_t *k) {
 
     if (0) {  // TODO: sd card inserted
         printk("SD CARD FAIL");
+        return false;
+    }
+
+    if (!controls_checked) {
         return false;
     }
 
@@ -273,7 +277,11 @@ static void entry_action(
 }
 
 FLIGHTSTATE
-state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
+state_machine_update(
+    const kalman_filter_t *k,
+    const imu_sample_t *is,
+    bool controls_checked
+) {
     const int64_t now_ns = k_ticks_to_ns_floor64(k_uptime_ticks());
     const float time_flight = machine.liftoff_time == 0
         ? 0.0f
@@ -305,7 +313,7 @@ state_machine_update(const kalman_filter_t *k, const imu_sample_t *is) {
             }
             break;
         case Safe:
-            if (pad_check(k)) {
+            if (pad_check(k, controls_checked)) {
                 machine.current_state = Pad;
             } else if (machine.checklist_time != 0.0
                        && (now_ns - machine.checklist_time) * 1e-9f
