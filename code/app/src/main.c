@@ -134,6 +134,9 @@ LINMATH_H_FUNC float quat_get_roll(quat const q) {
 }
 
 int main(void) {
+    // Boot marker: CRIT, so it also lands in crit.txt. code/scripts/read_crit.py
+    // looks for it to confirm the board booted.
+    log_crit("(half life scientist) everything.. seems to be in order");
     barometer_init(barometer);
     log_info("barometer...", device_is_ready(barometer) ? "ok" : "failed");
     imu_init(imu);
