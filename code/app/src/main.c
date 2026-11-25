@@ -127,16 +127,22 @@ void transform_coords(imu_sample_t *imu_sample) {
     imu_sample->angular_rate[2] = gyro_old[0];
 }
 
-LINMATH_H_FUNC float quat_get_roll(quat const q) {
-    float x = q[0];
-    float y = q[1];
-    float z = q[2];
-    float w = q[3];
+//Relative roll from pad attitude q_init
+LINMATH_H_FUNC float quat_get_roll_rel(quat const q, quat const q_init) {
+    // q_rel = conj(q_init) * q
+    float ix = -q_init[0], iy = -q_init[1], iz = -q_init[2], iw = q_init[3];
+    float rz = iw * q[2] + iz * q[3] + ix * q[1] - iy * q[0];
+    float rw = iw * q[3] - ix * q[0] - iy * q[1] - iz * q[2];
 
-    float siny_cosp = 2.f * (w * z + x * y);
-    float cosy_cosp = 1.f - 2.f * (y * y + z * z);
-
-    return atan2f(siny_cosp, cosy_cosp);
+    // Guard against the 180 deg straight-nose-down singularity (rw ≈ 0, rz ≈ 0)
+    if (rw * rw + rz * rz < 1e-4f) {
+        return 0.0f;
+    }
+    if (rw < 0.0f) {
+        rz = -rz;
+        rw = -rw;
+    }
+    return 2.0f * atan2f(rz, rw);
 }
 
 int main(void) {
@@ -163,6 +169,9 @@ int main(void) {
     vec3_scale(g, g, 1.0f / AVG_COUNT);
 
     kalman_filter_t k = kalman_init(g);
+
+    quat q_init;  // Store Initial attitude on Pad
+    quat_dup(q_init, k.orientation);
 
     for (int k_idx = 0; k_idx < AVG_COUNT; ++k_idx) {
         ret = k_msgq_get(&imu_msgq, &imu_sample, K_FOREVER);
@@ -267,7 +276,11 @@ int main(void) {
                 : (float)(now - last_roll_update_ns) * 1e-9f;
             last_roll_update_ns = now;
 
-            roll_control_update(quat_get_roll(k.orientation), 0.0f, dt);
+            roll_control_update(
+                quat_get_roll_rel(k.orientation, q_init),
+                0.0f,
+                dt
+            );
         }
 
         loop_counter++;
