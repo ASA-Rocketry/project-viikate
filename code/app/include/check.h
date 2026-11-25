@@ -19,10 +19,10 @@
  *
  * ASSERT is for states the code cannot go on from. It stores every line
  * logged so far, including its own, on the SD card and the flash, then resets
- * the board. Builds with CONFIG_ASSERT (the simulator and the HIL test
- * firmware) halt instead, so a test fails where it happened rather than in a
- * reboot loop. The failed thread never goes on. In an ISR the rest of the
- * handler still runs, and the board stops as soon as it returns.
+ * the board. Builds with CONFIG_ASSERT (the simulator) halt instead, so a
+ * test fails where it happened rather than in a reboot loop. The failed
+ * thread never goes on. In an ISR the rest of the handler still runs, and
+ * the board stops as soon as it returns.
  */
 
 #include <stdbool.h>

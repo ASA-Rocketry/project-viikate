@@ -75,5 +75,3 @@ Thumbs.db
 !.vscode/tasks.json
 *.swp
 
-# Hardware-in-the-loop test output
-twister-out-hil/

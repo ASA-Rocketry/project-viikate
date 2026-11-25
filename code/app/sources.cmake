@@ -1,5 +1,4 @@
-# Application sources, shared by the firmware build (code/app) and the
-# hardware-in-the-loop test build (code/tests/hil).
+# Application sources.
 set(VIIKATE_APP_DIR ${CMAKE_CURRENT_LIST_DIR})
 
 target_include_directories(app PRIVATE ${VIIKATE_APP_DIR}/include)

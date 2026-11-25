@@ -26,9 +26,9 @@
  *     1250 INFO ... ori [1, 0, 0, 0]
  *
  * Lines only break between arguments; one argument longer than a whole line
- * is cut. Builds with CONFIG_ASSERT (the simulator and the HIL test firmware)
- * treat an overlong line as a bug and stop, like a failed ASSERT (check.h),
- * so log calls get split by hand before they fly.
+ * is cut. Builds with CONFIG_ASSERT (the simulator) treat an overlong line
+ * as a bug and stop, like a failed ASSERT (check.h), so log calls get split
+ * by hand before they fly.
  *
  * A line is formatted in full before it is handed over, so it is never
  * flushed half written. A low priority thread then prints it to the console

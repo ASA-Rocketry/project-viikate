@@ -454,7 +454,7 @@ static void flush_all(void) {
     sync_storage();
 }
 
-// Builds with CONFIG_ASSERT (the simulator and the HIL test firmware) halt,
+// Builds with CONFIG_ASSERT (the simulator) halt,
 // so a run stops where the failure happened. Flight builds reset and go on.
 static FUNC_NORETURN void stop_board(void) {
     // Gives the USB console a moment to send the last lines.
