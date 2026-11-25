@@ -132,7 +132,7 @@ void task_barometer_read(void *arg1, void *arg2, void *arg3) {
 
         barometer_sample_t s = {
             .timestamp_ns = k_ticks_to_ns_floor64(k_uptime_ticks()),
-            .pressure = sensor_value_to_float(&pressure),
+            .pressure = sensor_value_to_float(&pressure) * 1000,  //kPa -> Pa
             .temperature = sensor_value_to_float(&temperature)
         };
 
