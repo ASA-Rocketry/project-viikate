@@ -6,13 +6,13 @@
 #include <zephyr/drivers/pwm.h>
 #include <zephyr/drivers/sensor.h>
 #include <zephyr/kernel.h>
-#include <zephyr/sys/printk.h>
 
 #include "dsp/controller_functions.h"
 #include "dsp/filtering_functions.h"
 #include "guidance/filters.h"
 #include "guidance/kalman.h"
 #include "guidance/pid.h"
+#include "logger.h"
 #include "math/linmath.h"
 #include "sensors.h"
 #include "servo.h"
@@ -51,17 +51,17 @@ static int sweep_servo(const servo_t servo) {
     enum direction dir = UP;
     int ret;
 
-    printk("Servomotor control (angle based)\n");
+    log_info("Servomotor control (angle based)");
 
     if (!pwm_is_ready_dt(&servo.spec)) {
-        printk("Error: PWM device %s is not ready\n", servo.spec.dev->name);
+        log_crit("PWM device", servo.spec.dev->name, "is not ready");
         return -ENODEV;
     }
 
     while (1) {
         ret = servo_set_angle(servo, angle);
         if (ret < 0) {
-            printk("Error %d: failed to set angle %.1f\n", ret, (double)angle);
+            log_crit("Failed to set angle", angle, "error", ret);
             return ret;
         }
 
@@ -103,12 +103,7 @@ double pressure_to_altitude(double pressure_pa) {
 }
 
 void print_acceleration(const imu_sample_t *sample) {
-    printf(
-        "Acceleration [m/s²]: X=%f, Y=%f, Z=%f\n",
-        (double)sample->acceleration[0],
-        (double)sample->acceleration[1],
-        (double)sample->acceleration[2]
-    );
+    log_info("Acceleration [m/s2]", sample->acceleration);
 }
 
 void transform_coords(imu_sample_t *imu_sample) {
@@ -139,8 +134,13 @@ LINMATH_H_FUNC float quat_get_roll(quat const q) {
 }
 
 int main(void) {
+    // Boot marker: CRIT, so it also lands in crit.txt. code/scripts/read_crit.py
+    // looks for it to confirm the board booted.
+    log_crit("(half life scientist) everything.. seems to be in order");
     barometer_init(barometer);
+    log_info("barometer...", device_is_ready(barometer) ? "ok" : "failed");
     imu_init(imu);
+    log_info("imu...", device_is_ready(imu) ? "ok" : "failed");
 
     imu_sample_t imu_sample;
     barometer_sample_t baro_sample;
@@ -216,43 +216,39 @@ int main(void) {
 
         /* Print state every 500 iterations (~500 ms at 1 kHz) */
         if (loop_counter % 500 == 0) {
-            printk(
-                "loops: %d total_time: %f time_per_kalman: %f\n",
+            float total_s = (float)time * 1e-9f;
+            log_info(
+                "loops",
                 loops,
-                (double)((float)time * 1e-9f),
-                (double)((float)time * 1e-9f / (float)(loops > 0 ? loops : 1))
+                "total_time",
+                total_s,
+                "time_per_kalman",
+                total_s / (float)(loops > 0 ? loops : 1)
             );
-            printk(
-                "STATE:\n"
-                "    pos = [%.3f, %.3f, %.3f]\n"
-                "    vel = [%.3f, %.3f, %.3f]\n"
-                "    ori = [%.4f, %.4f, %.4f, %.4f]\n"
-                "    ang_vel = [%.4f, %.4f, %.4f]\n"
-                "    acc_bias = [%.4f, %.4f, %.4f]\n"
-                "    gyro_bias = [%.4f, %.4f, %.4f]\n"
-                "    g = %.4f\n"
-                "    t_last = %llu ns\n",
-                (double)k.position[0],
-                (double)k.position[1],
-                (double)k.position[2],
-                (double)k.velocity[0],
-                (double)k.velocity[1],
-                (double)k.velocity[2],
-                (double)k.orientation[0],
-                (double)k.orientation[1],
-                (double)k.orientation[2],
-                (double)k.orientation[3],
-                (double)k.angular_velocity[0],
-                (double)k.angular_velocity[1],
-                (double)k.angular_velocity[2],
-                (double)k.accelerometer_bias[0],
-                (double)k.accelerometer_bias[1],
-                (double)k.accelerometer_bias[2],
-                (double)k.gyroscope_bias[0],
-                (double)k.gyroscope_bias[1],
-                (double)k.gyroscope_bias[2],
-                (double)k.gravity,
-                (unsigned long long)k.last_measurement_timestamp_ns
+            // Split by hand: a line longer than VIIKATE_LOG_MAX_LINE_LEN
+            // stops the simulator and the tests.
+            log_info(
+                "state pos",
+                k.position,
+                "vel",
+                k.velocity,
+                "ori",
+                k.orientation
+            );
+            log_info(
+                "state ang_vel",
+                k.angular_velocity,
+                "g",
+                k.gravity,
+                "t_last",
+                k.last_measurement_timestamp_ns,
+                "ns"
+            );
+            log_info(
+                "state acc_bias",
+                k.accelerometer_bias,
+                "gyro_bias",
+                k.gyroscope_bias
             );
             loops = 0;
         }

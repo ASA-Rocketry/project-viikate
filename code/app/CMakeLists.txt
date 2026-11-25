@@ -1,14 +1,9 @@
 cmake_minimum_required(VERSION 3.20.0)
+
+# The logger's settings live in logger.conf.
+set(CONF_FILE ${CMAKE_CURRENT_LIST_DIR}/prj.conf ${CMAKE_CURRENT_LIST_DIR}/logger.conf)
+
 find_package(Zephyr REQUIRED HINTS $ENV{ZEPHYR_BASE})
 project(my_app)
 
-target_include_directories(app PRIVATE include)
-
-target_sources(app PRIVATE 
-    src/main.c
-    src/servo.c
-    src/sensors.c
-    src/guidance/kalman.c
-    src/guidance/filters.c
-    src/guidance/pid.c
-)
+include(${CMAKE_CURRENT_SOURCE_DIR}/sources.cmake)
